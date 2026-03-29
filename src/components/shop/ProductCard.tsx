@@ -27,8 +27,12 @@ const ImgWrap = styled.div<{ $compact?: boolean }>`
 const Img = styled.img`
   width: 100%;
   height: 100%;
+  max-width: 100%;
   object-fit: contain;
+  object-position: center;
   display: block;
+  /* iOS: ne méretezzen újra furcsán görgetés / animáció közben */
+  -webkit-user-drag: none;
 `;
 
 const Badge = styled.span`
