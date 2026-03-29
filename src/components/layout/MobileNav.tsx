@@ -66,10 +66,14 @@ const NavLink = styled(Link)`
   font-size: 1.1rem;
   text-decoration: none;
   color: ${({ theme }) => theme.colors.text};
-  padding: ${({ theme }) => theme.space.sm} 0;
+  padding: ${({ theme }) => theme.space.sm};
+  margin: 0 calc(-1 * ${({ theme }) => theme.space.sm});
+  border-radius: ${({ theme }) => theme.radii.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  transition: background 0.2s, color 0.2s;
   &:hover {
-    color: ${({ theme }) => theme.colors.accent};
+    background: #000000;
+    color: #ffffff;
   }
 `;
 

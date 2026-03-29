@@ -47,8 +47,10 @@ const Clear = styled.button`
   line-height: 1;
   padding: 4px 8px;
   border-radius: ${({ theme }) => theme.radii.sm};
+  transition: background 0.2s, color 0.2s;
   &:hover {
-    color: ${({ theme }) => theme.colors.text};
+    background: #000000;
+    color: #ffffff;
   }
 `;
 

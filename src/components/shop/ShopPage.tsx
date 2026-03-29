@@ -51,7 +51,7 @@ const Chip = styled.button<{ active?: boolean }>`
   font-size: 0.9rem;
   cursor: pointer;
   &:hover {
-    border-color: ${({ theme }) => theme.colors.accent};
+    border-color: #000000;
   }
 `;
 

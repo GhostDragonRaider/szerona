@@ -108,10 +108,14 @@ const CtaBase = styled(Link)`
   border: 2px solid ${({ theme }) => theme.colors.border};
   color: ${({ theme }) => theme.colors.text};
   background: transparent;
-  transition: border-color 0.2s, color 0.2s;
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.accent};
-    color: ${({ theme }) => theme.colors.accent};
+  transition: none;
+  @media (hover: hover) {
+    &:hover {
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+      border-color: #000000;
+      color: #ffffff;
+      background: #000000;
+    }
   }
 `;
 

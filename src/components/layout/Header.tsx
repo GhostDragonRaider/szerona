@@ -54,9 +54,16 @@ const NavLink = styled(Link)`
   color: ${({ theme }) => theme.colors.textMuted};
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  transition: color 0.2s;
-  &:hover {
-    color: ${({ theme }) => theme.colors.accent};
+  padding: 0.25rem 0.5rem;
+  margin: -0.25rem -0.5rem;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  transition: none;
+  @media (hover: hover) {
+    &:hover {
+      transition: background 0.2s, color 0.2s;
+      background: #000000;
+      color: #ffffff;
+    }
   }
 `;
 
@@ -97,12 +104,17 @@ const IconBtn = styled.button`
   font-size: clamp(0.72rem, 2.8vw, 0.85rem);
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.2s, background 0.2s;
+  transition: none;
   @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
     padding: ${({ theme }) => theme.space.sm} ${({ theme }) => theme.space.md};
   }
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.accent};
+  @media (hover: hover) {
+    &:hover {
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+      border-color: #000000;
+      background: #000000;
+      color: #ffffff;
+    }
   }
 `;
 

@@ -145,9 +145,11 @@ const ClearBtn = styled.button`
   color: ${({ theme }) => theme.colors.textMuted};
   cursor: pointer;
   font-family: ${({ theme }) => theme.fonts.body};
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
   &:hover {
-    color: ${({ theme }) => theme.colors.accent};
-    border-color: ${({ theme }) => theme.colors.accent};
+    background: #000000;
+    color: #ffffff;
+    border-color: #000000;
   }
 `;
 

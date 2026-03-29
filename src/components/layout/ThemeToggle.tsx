@@ -18,10 +18,14 @@ const Btn = styled.button`
   cursor: pointer;
   font-size: 1.25rem;
   line-height: 1;
-  transition: border-color 0.2s, background 0.2s;
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.accent};
-    background: ${({ theme }) => theme.colors.accentSoft};
+  transition: none;
+  @media (hover: hover) {
+    &:hover {
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+      border-color: #000000;
+      background: #000000;
+      color: #ffffff;
+    }
   }
 `;
 

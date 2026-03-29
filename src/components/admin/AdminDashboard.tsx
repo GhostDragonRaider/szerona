@@ -133,7 +133,7 @@ const TabBtn = styled.button<{ active?: boolean }>`
   cursor: pointer;
   text-align: center;
   &:hover {
-    border-color: ${({ theme }) => theme.colors.accent};
+    border-color: #000000;
   }
   @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
     flex: none;

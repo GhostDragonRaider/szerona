@@ -88,8 +88,8 @@ const Btn = styled.button`
   cursor: pointer;
   transition: background 0.2s, transform 0.15s;
   &:hover {
-    background: ${({ theme }) => theme.colors.accent};
-    color: ${({ theme }) => theme.colors.onAccent};
+    background: #000000;
+    color: #ffffff;
   }
   &:active {
     transform: scale(0.98);

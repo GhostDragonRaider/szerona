@@ -139,7 +139,7 @@ const Btn = styled.button`
   cursor: pointer;
   font-size: 0.9rem;
   &:hover {
-    border-color: ${({ theme }) => theme.colors.accent};
+    border-color: #000000;
   }
 `;
 
