@@ -60,7 +60,7 @@ const Body = styled.div`
 
 const Meta = styled.time`
   font-size: 0.8rem;
-  color: ${({ theme }) => theme.colors.accent};
+  color: ${({ theme }) => theme.colors.text};
   font-weight: 600;
 `;
 

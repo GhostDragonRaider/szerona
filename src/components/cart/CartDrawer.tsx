@@ -103,7 +103,7 @@ const PName = styled.p`
 const PPrice = styled.p`
   margin: 4px 0 0;
   font-size: 0.85rem;
-  color: ${({ theme }) => theme.colors.textMuted};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Qty = styled.div`
@@ -133,6 +133,7 @@ const Total = styled.p`
   margin: 0 0 ${({ theme }) => theme.space.md};
   font-size: 1.25rem;
   font-weight: 700;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const ClearBtn = styled.button`

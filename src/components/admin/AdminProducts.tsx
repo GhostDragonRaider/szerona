@@ -192,6 +192,7 @@ const CardPrice = styled.div`
   font-weight: 600;
   font-size: 1rem;
   margin-top: ${({ theme }) => theme.space.xs};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const CardActions = styled.div`

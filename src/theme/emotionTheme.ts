@@ -29,34 +29,36 @@ const shared = {
   },
 } as const;
 
-/** Sötét (alapértelmezett) mód – eredeti webshop megjelenés. */
+/** Sötét mód: minimalista fekete, fehér szöveg, erős jelenlét (kontraszt, finom mélység). */
 export const seronaThemeDark = {
   ...shared,
   colors: {
-    bg: "#0a0a0c",
-    surface: "#14141a",
-    surfaceElevated: "#1c1c24",
-    text: "#f4f4f6",
-    textMuted: "#9ca3af",
+    bg: "#050505",
+    surface: "#0a0a0a",
+    surfaceElevated: "#111111",
+    /** Egységes fehér szöveg (secondary / címkék is) */
+    text: "#ffffff",
+    textMuted: "#ffffff",
     accent: "#ff3d5a",
-    accentSoft: "rgba(255, 61, 90, 0.15)",
+    accentSoft: "rgba(255, 61, 90, 0.12)",
+    /** Másodlagos gombok / gradiens egyik színe – olvasható fehér szöveggel */
     secondary: "#3b82f6",
-    secondarySoft: "rgba(59, 130, 246, 0.15)",
-    success: "#22c55e",
-    border: "rgba(255,255,255,0.08)",
+    secondarySoft: "rgba(255, 255, 255, 0.06)",
+    success: "#4ade80",
+    border: "rgba(255,255,255,0.1)",
+    /** Egyszerű, mély háttér – kevés színzaj */
     gradientHero:
-      "linear-gradient(135deg, #0a0a0c 0%, #1a0a14 40%, #0f172a 70%, #0a0a0c 100%)",
+      "linear-gradient(165deg, #050505 0%, #0a0a0a 42%, #050505 100%)",
     gradientAccent: "linear-gradient(90deg, #ff3d5a, #f97316, #eab308)",
-    /** Modális háttér, fejléc üveg, termékkép doboz */
-    overlay: "rgba(0, 0, 0, 0.55)",
-    headerBg: "rgba(10, 10, 12, 0.85)",
+    overlay: "rgba(0, 0, 0, 0.65)",
+    headerBg: "rgba(5, 5, 5, 0.88)",
     productImageBg: "#ffffff",
-    /** Gombokon / kiemelésen fehér szöveg */
     onAccent: "#ffffff",
   },
   shadows: {
-    card: "0 8px 32px rgba(0,0,0,0.35)",
-    glow: "0 0 40px rgba(255, 61, 90, 0.25)",
+    /** Vékony fény + mély árnyék: „maximális jelenlét” minimál elemekkel */
+    card: "0 0 0 1px rgba(255,255,255,0.06), 0 20px 50px rgba(0,0,0,0.55)",
+    glow: "0 0 48px rgba(255, 61, 90, 0.22)",
   },
 } as const;
 

@@ -70,7 +70,7 @@ const Price = styled.p`
   margin: 0;
   font-size: 1.15rem;
   font-weight: 700;
-  color: ${({ theme }) => theme.colors.accent};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Btn = styled.button`

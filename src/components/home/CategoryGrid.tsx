@@ -1,10 +1,18 @@
 /**
- * Termékcsoportok vizuális rácsa: pólók, pulóverek, nadrágok, cipők – link a bolt + szűrőre.
+ * Termékcsoportok vizuális rácsa: kategóriánként modellfotó (generált), link a bolt + szűrőre.
  */
 import styled from "@emotion/styled";
 import { Link } from "react-router-dom";
 import { CATEGORY_LABELS } from "../../data/categoryLabels";
 import type { ProductCategory } from "../../data/types";
+
+/** Generált kategória-képek (public/pictures) – modell a megfelelő ruhanemben */
+const CATEGORY_IMAGES: Record<ProductCategory, string> = {
+  polo: "/pictures/category-polo.png",
+  pulover: "/pictures/category-pulover.png",
+  nadrag: "/pictures/category-nadrag.png",
+  cipo: "/pictures/category-cipo.png",
+};
 
 const Section = styled.section`
   padding: ${({ theme }) => theme.space.xl} ${({ theme }) => theme.space.md};
@@ -33,27 +41,32 @@ const Grid = styled.div`
   }
 `;
 
-const gradients: Record<ProductCategory, string> = {
-  polo: "linear-gradient(145deg, #1e1b4b 0%, #ff3d5a 100%)",
-  pulover: "linear-gradient(145deg, #0f172a 0%, #3b82f6 100%)",
-  nadrag: "linear-gradient(145deg, #14532d 0%, #eab308 100%)",
-  cipo: "linear-gradient(145deg, #292524 0%, #f97316 100%)",
-};
-
-const Card = styled(Link)<{ grad: string }>`
+const Card = styled(Link)<{ $imageUrl: string }>`
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  min-height: 140px;
+  position: relative;
+  min-height: 200px;
   padding: ${({ theme }) => theme.space.md};
   @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
-    min-height: 160px;
+    min-height: 240px;
     padding: ${({ theme }) => theme.space.lg};
   }
   border-radius: ${({ theme }) => theme.radii.lg};
   text-decoration: none;
-  background: ${({ grad }) => grad};
   border: 1px solid ${({ theme }) => theme.colors.border};
+  overflow: hidden;
+  background-color: ${({ theme }) => theme.colors.surfaceElevated};
+  background-image: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.88) 0%,
+      rgba(0, 0, 0, 0.35) 42%,
+      transparent 68%
+    ),
+    url(${({ $imageUrl }) => $imageUrl});
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
   &:hover {
     transform: translateY(-6px);
@@ -65,14 +78,18 @@ const CardTitle = styled.span`
   font-family: ${({ theme }) => theme.fonts.display};
   font-size: clamp(1.35rem, 4vw, 1.75rem);
   letter-spacing: 0.1em;
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 1;
 `;
 
 const CardHint = styled.span`
   margin-top: ${({ theme }) => theme.space.sm};
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: #ffffff;
+  position: relative;
+  z-index: 1;
 `;
 
 const categories: ProductCategory[] = ["polo", "pulover", "nadrag", "cipo"];
@@ -86,7 +103,7 @@ export function CategoryGrid() {
           <Card
             key={cat}
             to={`/shop?category=${cat}`}
-            grad={gradients[cat]}
+            $imageUrl={CATEGORY_IMAGES[cat]}
           >
             <CardTitle>{CATEGORY_LABELS[cat]}</CardTitle>
             <CardHint>Megnézem →</CardHint>
