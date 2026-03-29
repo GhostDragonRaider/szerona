@@ -17,12 +17,16 @@ const globalStyles = css`
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;
+    overflow-x: clip;
+    max-width: 100%;
   }
   body {
     margin: 0;
     min-height: 100vh;
     min-height: 100dvh;
     overflow-x: hidden;
+    overflow-x: clip;
+    max-width: 100%;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0)
@@ -31,6 +35,9 @@ const globalStyles = css`
   #root {
     min-height: 100vh;
     min-height: 100dvh;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-x: clip;
   }
   img {
     max-width: 100%;

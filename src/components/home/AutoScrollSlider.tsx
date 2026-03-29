@@ -7,20 +7,29 @@ import styled from "@emotion/styled";
 import { useProducts } from "../../context/ProductsContext";
 import { ProductCard } from "../shop/ProductCard";
 
+/** translate3d: jobb GPU réteg mobilon, kevesebb furcsa újrarajzolás */
 const scroll = keyframes`
   0% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 `;
 
 const Section = styled.section`
   padding: ${({ theme }) => theme.space.xl} 0;
   overflow: hidden;
+  overflow-x: clip;
   background: ${({ theme }) => theme.colors.bg};
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  position: relative;
+  isolation: isolate;
+  contain: layout paint;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
   @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
     padding: ${({ theme }) => theme.space.xxl} 0;
   }
@@ -52,23 +61,41 @@ const Sub = styled.p`
 
 const Viewport = styled.div`
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
-  mask-image: linear-gradient(
-    90deg,
-    transparent,
-    #000 8%,
-    #000 92%,
-    transparent
-  );
+  overflow-x: clip;
+  contain: layout paint;
+  /* mask-image iOS-on néha hibás kompozitálást okoz görgetéskor – csak nagyobb képernyőn */
+  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 8%,
+      #000 92%,
+      transparent
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 8%,
+      #000 92%,
+      transparent
+    );
+  }
 `;
 
 const Track = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.space.lg};
   width: max-content;
+  min-width: min-content;
   animation: ${scroll} 45s linear infinite;
-  &:hover {
-    animation-play-state: paused;
+  backface-visibility: hidden;
+  @media (hover: hover) {
+    &:hover {
+      animation-play-state: paused;
+    }
   }
 `;
 
