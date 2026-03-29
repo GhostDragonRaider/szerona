@@ -92,29 +92,8 @@ const CtaRow = styled.div`
   gap: ${({ theme }) => theme.space.md};
 `;
 
-const Cta = styled(Link)`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: ${({ theme }) => theme.space.md} ${({ theme }) => theme.space.xl};
-  border-radius: ${({ theme }) => theme.radii.pill};
-  font-family: ${({ theme }) => theme.fonts.body};
-  font-weight: 700;
-  font-size: 0.95rem;
-  text-decoration: none;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  background: ${({ theme }) => theme.colors.accent};
-  color: ${({ theme }) => theme.colors.onAccent};
-  box-shadow: ${({ theme }) => theme.shadows.glow};
-  transition: transform 0.2s, filter 0.2s;
-  &:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.08);
-  }
-`;
-
-const CtaGhost = styled(Link)`
+/** Közös CTA: Kollekció / Belépés jellegű szegélyes, felületi gomb */
+const CtaBase = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -128,11 +107,16 @@ const CtaGhost = styled(Link)`
   letter-spacing: 0.08em;
   border: 2px solid ${({ theme }) => theme.colors.border};
   color: ${({ theme }) => theme.colors.text};
+  background: transparent;
+  transition: border-color 0.2s, color 0.2s;
   &:hover {
     border-color: ${({ theme }) => theme.colors.accent};
     color: ${({ theme }) => theme.colors.accent};
   }
 `;
+
+const Cta = CtaBase;
+const CtaGhost = CtaBase;
 
 export function HeroSection() {
   const { settings } = useSettings();

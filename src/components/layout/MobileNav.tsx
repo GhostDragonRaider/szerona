@@ -138,9 +138,9 @@ export function MobileNav({
               css={(theme) => ({
                 padding: theme.space.md,
                 borderRadius: theme.radii.md,
-                border: "none",
-                background: `linear-gradient(135deg, ${theme.colors.accent}, #f97316)`,
-                color: theme.colors.onAccent,
+                border: `1px solid ${theme.colors.border}`,
+                background: theme.colors.surfaceElevated,
+                color: theme.colors.text,
                 fontFamily: theme.fonts.body,
                 fontWeight: 600,
                 cursor: "pointer",

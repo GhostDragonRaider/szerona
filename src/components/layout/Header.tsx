@@ -3,7 +3,6 @@
  * Mobilon a belépés és regisztráció csak a hamburger menüben (MobileNav).
  * A márkalogó csak a kezdőlap hero szekciójában jelenik meg (nem a fejlécben).
  */
-import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -171,7 +170,6 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenLogin, onOpenRegister }: HeaderProps) {
-  const theme = useTheme();
   const { totalItems, setOpen } = useCart();
   const { user, logout, isAdmin } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -217,15 +215,7 @@ export function Header({ onOpenLogin, onOpenRegister }: HeaderProps) {
               <IconBtn type="button" onClick={onOpenLogin}>
                 Belépés
               </IconBtn>
-              <IconBtn
-                type="button"
-                onClick={onOpenRegister}
-                style={{
-                  background: `linear-gradient(135deg, ${theme.colors.accent}, #f97316)`,
-                  border: "none",
-                  color: theme.colors.onAccent,
-                }}
-              >
+              <IconBtn type="button" onClick={onOpenRegister}>
                 Regisztráció
               </IconBtn>
             </AuthHeaderDesktop>
