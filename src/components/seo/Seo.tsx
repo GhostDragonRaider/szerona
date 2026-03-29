@@ -7,6 +7,10 @@ import { useLocation } from "react-router-dom";
 
 const DEFAULT_DESCRIPTION = "Serona – prémium utcai divat webáruház";
 
+/** A /serona-logo.png eredeti képaránya (OG kép méretekhez). */
+const OG_IMAGE_WIDTH = 401;
+const OG_IMAGE_HEIGHT = 338;
+
 const ROUTE_META: Record<
   string,
   { title: string; description: string }
@@ -34,36 +38,52 @@ function siteOrigin(): string {
   return "";
 }
 
-function jsonLdWebSite(origin: string) {
+function jsonLdHome(origin: string) {
+  const orgId = `${origin}/#organization`;
+  const siteId = `${origin}/#website`;
+  const logoUrl = `${origin}/serona-logo.png`;
   return {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "Serona",
-    url: `${origin}/`,
-    description: DEFAULT_DESCRIPTION,
-    inLanguage: "hu-HU",
-    publisher: {
-      "@type": "Organization",
-      name: "Serona",
-      url: `${origin}/`,
-      logo: {
-        "@type": "ImageObject",
-        url: `${origin}/serona-logo.png`,
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": orgId,
+        name: "Serona",
+        url: `${origin}/`,
+        logo: {
+          "@type": "ImageObject",
+          url: logoUrl,
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
+        },
       },
-    },
+      {
+        "@type": "WebSite",
+        "@id": siteId,
+        name: "Serona",
+        url: `${origin}/`,
+        description: DEFAULT_DESCRIPTION,
+        inLanguage: "hu-HU",
+        publisher: { "@id": orgId },
+      },
+    ],
   };
 }
 
 export function Seo() {
   const { pathname } = useLocation();
-  const key = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  const key =
+    pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
   const meta = ROUTE_META[key] ?? ROUTE_META["/"];
   const origin = siteOrigin();
-  const canonical = origin ? `${origin}${pathname === "/" ? "/" : pathname}` : "";
+  const canonical = origin
+    ? `${origin}${pathname === "/" ? "/" : pathname}`
+    : "";
   const ogImage = origin ? `${origin}/serona-logo.png` : "";
 
   return (
     <Helmet prioritizeSeoTags htmlAttributes={{ lang: "hu" }}>
+      <meta name="robots" content="index, follow" />
       <title>{meta.title}</title>
       <meta name="description" content={meta.description} />
       {canonical ? <link rel="canonical" href={canonical} /> : null}
@@ -74,6 +94,21 @@ export function Seo() {
       <meta property="og:description" content={meta.description} />
       {canonical ? <meta property="og:url" content={canonical} /> : null}
       {ogImage ? <meta property="og:image" content={ogImage} /> : null}
+      {ogImage ? (
+        <meta property="og:image:alt" content="Serona logó" />
+      ) : null}
+      {ogImage ? (
+        <meta
+          property="og:image:width"
+          content={String(OG_IMAGE_WIDTH)}
+        />
+      ) : null}
+      {ogImage ? (
+        <meta
+          property="og:image:height"
+          content={String(OG_IMAGE_HEIGHT)}
+        />
+      ) : null}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={meta.title} />
       <meta name="twitter:description" content={meta.description} />
@@ -81,9 +116,12 @@ export function Seo() {
       {canonical ? (
         <link rel="alternate" hrefLang="hu" href={canonical} />
       ) : null}
+      {canonical ? (
+        <link rel="alternate" hrefLang="x-default" href={canonical} />
+      ) : null}
       {pathname === "/" && origin ? (
         <script type="application/ld+json">
-          {JSON.stringify(jsonLdWebSite(origin))}
+          {JSON.stringify(jsonLdHome(origin))}
         </script>
       ) : null}
     </Helmet>

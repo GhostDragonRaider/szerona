@@ -9,6 +9,7 @@ export function AdminSeo() {
       <title>Admin – Serona</title>
       <meta name="robots" content="noindex, nofollow" />
       <meta name="googlebot" content="noindex, nofollow" />
+      <meta name="bingbot" content="noindex, nofollow" />
     </Helmet>
   );
 }
