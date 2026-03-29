@@ -33,7 +33,7 @@ const shared = {
 export const seronaThemeDark = {
   ...shared,
   colors: {
-    bg: "#050505",
+    bg: "#000000",
     surface: "#0a0a0a",
     surfaceElevated: "#111111",
     /** Egységes fehér szöveg (secondary / címkék is) */
@@ -46,9 +46,8 @@ export const seronaThemeDark = {
     secondarySoft: "rgba(255, 255, 255, 0.06)",
     success: "#4ade80",
     border: "rgba(255,255,255,0.1)",
-    /** Egyszerű, mély háttér – kevés színzaj */
-    gradientHero:
-      "linear-gradient(165deg, #050505 0%, #0a0a0a 42%, #050505 100%)",
+    /** Hero szekció sötét módban: tiszta fekete (nincs színes árnyalat / gradiens). */
+    gradientHero: "#000000",
     gradientAccent: "linear-gradient(90deg, #ff3d5a, #f97316, #eab308)",
     overlay: "rgba(0, 0, 0, 0.65)",
     headerBg: "rgba(5, 5, 5, 0.88)",
@@ -66,7 +65,7 @@ export const seronaThemeDark = {
 export const seronaThemeLight = {
   ...shared,
   colors: {
-    bg: "#f4f6fb",
+    bg: "#ffffff",
     surface: "#ffffff",
     surfaceElevated: "#eef1f8",
     text: "#0f172a",
@@ -77,8 +76,8 @@ export const seronaThemeLight = {
     secondarySoft: "rgba(37, 99, 235, 0.12)",
     success: "#16a34a",
     border: "rgba(15, 23, 42, 0.1)",
-    gradientHero:
-      "linear-gradient(135deg, #f4f6fb 0%, #fff5f7 38%, #eef2ff 72%, #f4f6fb 100%)",
+    /** Hero szekció világos módban: tiszta fehér (nincs rózsaszín/lila árnyalat). */
+    gradientHero: "#ffffff",
     gradientAccent: "linear-gradient(90deg, #e11d48, #f97316, #ca8a04)",
     overlay: "rgba(15, 23, 42, 0.45)",
     headerBg: "rgba(255, 255, 255, 0.9)",

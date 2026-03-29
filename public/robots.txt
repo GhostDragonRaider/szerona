@@ -1,0 +1,6 @@
+# Éles: cseréld le a Sitemap-URL-t a domainre (pl. https://serona.hu/sitemap.xml).
+User-agent: *
+Allow: /
+Disallow: /admin
+
+Sitemap: https://example.com/sitemap.xml

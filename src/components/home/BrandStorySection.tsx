@@ -96,8 +96,9 @@ const Cta = styled(Link)`
   margin-top: ${({ theme }) => theme.space.sm};
   padding: ${({ theme }) => theme.space.sm} ${({ theme }) => theme.space.lg};
   border-radius: ${({ theme }) => theme.radii.sm};
-  background: #000000;
-  color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  color: #000000;
   font-family: ${({ theme }) => theme.fonts.body};
   font-weight: 700;
   font-size: clamp(0.68rem, 2vw, 0.82rem);
@@ -105,11 +106,10 @@ const Cta = styled(Link)`
   text-transform: uppercase;
   text-decoration: none;
   text-align: center;
-  transition: none;
+  transition: background-color 0.2s ease;
   @media (hover: hover) {
     &:hover {
-      transition: opacity 0.2s;
-      opacity: 0.92;
+      background: #f0f0f0;
     }
   }
 `;

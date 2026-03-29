@@ -35,21 +35,6 @@ const Section = styled.section`
   }
 `;
 
-const Glow = styled.div`
-  position: absolute;
-  width: 60%;
-  max-width: 500px;
-  height: 400px;
-  top: -100px;
-  right: -80px;
-  background: radial-gradient(
-    circle,
-    ${({ theme }) => theme.colors.accentSoft} 0%,
-    transparent 70%
-  );
-  pointer-events: none;
-`;
-
 const Inner = styled.div`
   position: relative;
   max-width: 1200px;
@@ -138,9 +123,9 @@ const CtaGhost = CtaBase;
 
 export function HeroSection() {
   const { settings } = useSettings();
+
   return (
     <Section>
-      <Glow />
       <Inner>
         <HeroBlock>
           <HeroLead>

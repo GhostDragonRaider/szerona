@@ -4,6 +4,7 @@
 import styled from "@emotion/styled";
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { Seo } from "../seo/Seo";
 import { CartDrawer } from "../cart/CartDrawer";
 import { LoginModal } from "../auth/LoginModal";
 import { RegisterModal } from "../auth/RegisterModal";
@@ -46,6 +47,7 @@ export function MainLayout() {
 
   return (
     <Shell>
+      <Seo />
       <Header
         onOpenLogin={() => setLoginOpen(true)}
         onOpenRegister={() => setRegisterOpen(true)}
