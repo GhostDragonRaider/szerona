@@ -1,0 +1,38 @@
+{
+  "name": "szerona",
+  "version": "1.0.0",
+  "description": "Serona webshop – React + TypeScript + Emotion frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "node node_modules/vite/bin/vite.js",
+    "build": "node node_modules/typescript/lib/tsc.js -b && node node_modules/vite/bin/vite.js build",
+    "preview": "node node_modules/vite/bin/vite.js preview",
+    "typecheck": "node node_modules/typescript/lib/tsc.js -b --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GhostDragonRaider/szerona.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/GhostDragonRaider/szerona/issues"
+  },
+  "homepage": "https://github.com/GhostDragonRaider/szerona#readme",
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0"
+  }
+}

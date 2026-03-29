@@ -1,0 +1,7 @@
+/**
+ * TypeScript projekt gyökér: hivatkozások az app és a Node eszközök tsconfig-jaira.
+ */
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+}
