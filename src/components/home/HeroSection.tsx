@@ -15,11 +15,22 @@ const Section = styled.section`
   background: ${({ theme }) => theme.colors.gradientHero};
   width: 100%;
   box-sizing: border-box;
-  @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
-    padding: ${({ theme }) => theme.space.xxl} ${({ theme }) => theme.space.lg}
-      ${({ theme }) => theme.space.xxl};
+  @media (max-width: ${({ theme }) => `calc(${theme.breakpoints.lg} - 1px)`}) {
+    padding-top: calc(
+      56px + env(safe-area-inset-top, 0px) + ${({ theme }) => theme.space.md}
+    );
   }
-  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
+  @media (min-width: ${({ theme }) => theme.breakpoints.sm}) and (max-width: ${({
+      theme,
+    }) => `calc(${theme.breakpoints.lg} - 1px)`}) {
+    padding-top: calc(
+      56px + env(safe-area-inset-top, 0px) + ${({ theme }) => theme.space.xl}
+    );
+    padding-left: ${({ theme }) => theme.space.lg};
+    padding-right: ${({ theme }) => theme.space.lg};
+    padding-bottom: ${({ theme }) => theme.space.xxl};
+  }
+  @media (min-width: ${({ theme }) => theme.breakpoints.lg}) {
     padding: 5rem ${({ theme }) => theme.space.lg} 6rem;
   }
 `;
@@ -65,8 +76,11 @@ const HeroBlock = styled.div`
 
 /** Logó a h1-ben – lejjebb tolva a fejléc alatt, teljes szélesség + középre */
 const HeroBrandHeading = styled.h1`
-  margin: ${({ theme }) => theme.space.xxl} 0 0;
+  margin: ${({ theme }) => theme.space.md} 0 0;
   padding: 0;
+  @media (min-width: ${({ theme }) => theme.breakpoints.lg}) {
+    margin-top: ${({ theme }) => theme.space.xxl};
+  }
   width: 100%;
   line-height: 1;
   display: flex;

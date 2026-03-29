@@ -1,13 +1,12 @@
 /**
  * Teljes képernyős mobil navigációs panel (overlay).
- * A fejléc hamburger gombja nyitja; kattintásra bezáródik a menüpontra ugrás után is.
- * Portál a body-ba: a fejléc backdrop-filtere egyébként fixed pozíciót a fejléc dobozához kötné,
- * így az overlay nem fedné le az egész oldalt.
+ * Téma váltó a bezárás (×) gomb mellett a panel tetején.
  */
 import styled from "@emotion/styled";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { ThemeToggle } from "./ThemeToggle";
 
 const Overlay = styled.div<{ open: boolean }>`
   position: fixed;
@@ -42,8 +41,23 @@ const Panel = styled.aside<{ open: boolean }>`
   box-shadow: ${({ theme }) => theme.shadows.card};
 `;
 
+const TopRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.space.xs};
+  flex-shrink: 0;
+  width: 100%;
+`;
+
+const ThemeToggleWrap = styled.div`
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 const CloseBtn = styled.button`
-  align-self: flex-end;
   border: none;
   background: transparent;
   color: ${({ theme }) => theme.colors.text};
@@ -51,6 +65,7 @@ const CloseBtn = styled.button`
   line-height: 1;
   cursor: pointer;
   padding: ${({ theme }) => theme.space.sm};
+  flex-shrink: 0;
 `;
 
 const NavList = styled.nav`
@@ -58,6 +73,7 @@ const NavList = styled.nav`
   flex-direction: column;
   gap: ${({ theme }) => theme.space.md};
   margin-top: ${({ theme }) => theme.space.md};
+  flex: 1 1 auto;
 `;
 
 const NavLink = styled(Link)`
@@ -70,10 +86,13 @@ const NavLink = styled(Link)`
   margin: 0 calc(-1 * ${({ theme }) => theme.space.sm});
   border-radius: ${({ theme }) => theme.radii.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  transition: background 0.2s, color 0.2s;
-  &:hover {
-    background: #000000;
-    color: #ffffff;
+  transition: none;
+  @media (hover: hover) {
+    &:hover {
+      transition: background 0.2s, color 0.2s;
+      background: #000000;
+      color: #ffffff;
+    }
   }
 `;
 
@@ -96,9 +115,17 @@ export function MobileNav({
     <>
       <Overlay open={isOpen} onClick={onClose} aria-hidden={!isOpen} />
       <Panel open={isOpen} aria-hidden={!isOpen}>
-        <CloseBtn type="button" onClick={onClose} aria-label="Menü bezárása">
-          ×
-        </CloseBtn>
+        <TopRow>
+          <ThemeToggleWrap
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <ThemeToggle />
+          </ThemeToggleWrap>
+          <CloseBtn type="button" onClick={onClose} aria-label="Menü bezárása">
+            ×
+          </CloseBtn>
+        </TopRow>
         <NavList onClick={onClose}>
           <NavLink to="/">Kezdőlap</NavLink>
           <NavLink to="/shop">Bolt</NavLink>
@@ -168,6 +195,8 @@ export function MobileNav({
               background: "transparent",
               color: theme.colors.textMuted,
               cursor: "pointer",
+              fontFamily: theme.fonts.body,
+              fontWeight: 600,
             })}
           >
             Kilépés

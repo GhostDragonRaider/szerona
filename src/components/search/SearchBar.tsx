@@ -59,6 +59,7 @@ export function SearchBar() {
   return (
     <Wrap>
       <Input
+        id="global-search-input"
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}

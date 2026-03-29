@@ -13,8 +13,8 @@ export function HomePage() {
   return (
     <>
       <HeroSection />
-      <AutoScrollSlider />
       {settings.showCategoryStrip ? <CategoryGrid /> : null}
+      <AutoScrollSlider />
       {settings.showNewsSection ? <NewsSection /> : null}
     </>
   );

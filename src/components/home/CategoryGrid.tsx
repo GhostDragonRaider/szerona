@@ -3,6 +3,7 @@
  */
 import styled from "@emotion/styled";
 import { Link } from "react-router-dom";
+import { BrandStorySection } from "./BrandStorySection";
 import { CATEGORY_LABELS } from "../../data/categoryLabels";
 import type { ProductCategory } from "../../data/types";
 
@@ -96,20 +97,23 @@ const categories: ProductCategory[] = ["polo", "pulover", "nadrag", "cipo"];
 
 export function CategoryGrid() {
   return (
-    <Section>
-      <Title>Shop kategóriák</Title>
-      <Grid>
-        {categories.map((cat) => (
-          <Card
-            key={cat}
-            to={`/shop?category=${cat}`}
-            $imageUrl={CATEGORY_IMAGES[cat]}
-          >
-            <CardTitle>{CATEGORY_LABELS[cat]}</CardTitle>
-            <CardHint>Megnézem →</CardHint>
-          </Card>
-        ))}
-      </Grid>
-    </Section>
+    <>
+      <BrandStorySection />
+      <Section>
+        <Title>Fedezd fel</Title>
+        <Grid>
+          {categories.map((cat) => (
+            <Card
+              key={cat}
+              to={`/shop?category=${cat}`}
+              $imageUrl={CATEGORY_IMAGES[cat]}
+            >
+              <CardTitle>{CATEGORY_LABELS[cat]}</CardTitle>
+              <CardHint>Megnézem →</CardHint>
+            </Card>
+          ))}
+        </Grid>
+      </Section>
+    </>
   );
 }
