@@ -49,8 +49,8 @@ const Clear = styled.button`
   border-radius: ${({ theme }) => theme.radii.sm};
   transition: background 0.2s, color 0.2s;
   &:hover {
-    background: #000000;
-    color: #ffffff;
+    background: ${({ theme }) => theme.colors.text};
+    color: ${({ theme }) => theme.colors.bg};
   }
 `;
 

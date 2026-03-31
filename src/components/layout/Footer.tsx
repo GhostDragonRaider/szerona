@@ -26,30 +26,14 @@ const Inner = styled.div`
   gap: ${({ theme }) => theme.space.md};
 `;
 
-/** Logó + szöveg egy blokkban, vizuálisan kiegyensúlyozva */
+/** Márka (S-jel + SERONA + tagline) + bevezető szöveg */
 const BrandBlock = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: ${({ theme }) => theme.space.sm};
+  gap: ${({ theme }) => theme.space.md};
   width: 100%;
-  max-width: 560px;
-
-  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: center;
-    gap: ${({ theme }) => theme.space.lg};
-    max-width: 720px;
-  }
-`;
-
-const LogoSlot = styled.div`
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  max-width: 36rem;
 `;
 
 const Tagline = styled.p`
@@ -59,12 +43,6 @@ const Tagline = styled.p`
   color: ${({ theme }) => theme.colors.textMuted};
   text-align: center;
   max-width: 48rem;
-
-  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
-    text-align: left;
-    flex: 1;
-    min-width: 0;
-  }
 `;
 
 const Copy = styled.p`
@@ -82,9 +60,7 @@ export function Footer() {
     <Foot>
       <Inner>
         <BrandBlock>
-          <LogoSlot>
-            <Logo variant="footer" />
-          </LogoSlot>
+          <Logo variant="footer" />
           <Tagline>
             Prémium utcai divat. Minőségi anyagok, merész sziluettek – a Serona a
             mindennapi önkifejezésedhez készült.

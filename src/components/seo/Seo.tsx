@@ -29,6 +29,11 @@ const ROUTE_META: Record<
     description:
       "Serona fiók: beállítások és személyes adatok kezelése.",
   },
+  "/checkout": {
+    title: "Fizetés – Serona",
+    description:
+      "Serona pénztár: szállítási adatok, fizetési mód és rendelés összegzése.",
+  },
 };
 
 function siteOrigin(): string {

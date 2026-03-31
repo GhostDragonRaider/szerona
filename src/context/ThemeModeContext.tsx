@@ -15,16 +15,6 @@ const STORAGE_KEY = "szerona_color_mode_v1";
 
 export type ColorMode = "light" | "dark";
 
-function readStoredMode(): ColorMode | null {
-  try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v === "light" || v === "dark") return v;
-  } catch {
-    /* */
-  }
-  return null;
-}
-
 interface ThemeModeContextValue {
   mode: ColorMode;
   setMode: (m: ColorMode) => void;
@@ -35,12 +25,7 @@ interface ThemeModeContextValue {
 const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
 
 function getInitialMode(): ColorMode {
-  if (typeof window === "undefined") return "dark";
-  const stored = readStoredMode();
-  if (stored) return stored;
-  if (window.matchMedia("(prefers-color-scheme: light)").matches) {
-    return "light";
-  }
+  /** Egyelőre mindig sötét indulás (nincs téma gomb; régi localStorage light nem maradhat). */
   return "dark";
 }
 

@@ -21,6 +21,7 @@ const Section = styled.section`
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+  background: transparent;
   @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
     padding: ${({ theme }) => theme.space.xxl} ${({ theme }) => theme.space.lg};
   }
@@ -31,6 +32,7 @@ const Title = styled.h2`
   font-family: ${({ theme }) => theme.fonts.display};
   font-size: clamp(2rem, 5vw, 3rem);
   letter-spacing: 0.06em;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Grid = styled.div`

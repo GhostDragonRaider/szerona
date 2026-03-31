@@ -7,7 +7,6 @@ import styled from "@emotion/styled";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminSeo } from "../seo/AdminSeo";
-import { ThemeToggle } from "../layout/ThemeToggle";
 import { AdminProducts } from "./AdminProducts";
 import { AdminSettings } from "./AdminSettings";
 
@@ -169,7 +168,6 @@ export function AdminDashboard() {
       <AdminSeo />
       <Top>
         <TopRight>
-          <ThemeToggle />
           <BackLink to="/" title="Vissza a webshopba">
             <BackLabelLong>← Vissza a webshopba</BackLabelLong>
             <BackLabelShort>← Webshop</BackLabelShort>

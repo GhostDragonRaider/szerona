@@ -1,12 +1,11 @@
 /**
- * Teljes képernyős mobil navigációs panel (overlay).
- * Téma váltó a bezárás (×) gomb mellett a panel tetején.
+ * Oldalsó navigációs panel (overlay): kezdőlap, bolt, fiók, admin, téma, belépés/kilépés.
+ * Mobilon és asztalon ugyanaz a hamburger nyitja.
  */
 import styled from "@emotion/styled";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { ThemeToggle } from "./ThemeToggle";
 
 const Overlay = styled.div<{ open: boolean }>`
   position: fixed;
@@ -22,7 +21,7 @@ const Panel = styled.aside<{ open: boolean }>`
   position: fixed;
   top: 0;
   right: 0;
-  width: min(88vw, 320px);
+  width: min(88vw, 380px);
   height: 100%;
   max-height: 100dvh;
   padding: ${({ theme }) => theme.space.lg};
@@ -45,16 +44,8 @@ const TopRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: ${({ theme }) => theme.space.xs};
   flex-shrink: 0;
   width: 100%;
-`;
-
-const ThemeToggleWrap = styled.div`
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 `;
 
 const CloseBtn = styled.button`
@@ -66,6 +57,17 @@ const CloseBtn = styled.button`
   cursor: pointer;
   padding: ${({ theme }) => theme.space.sm};
   flex-shrink: 0;
+`;
+
+const UserBlock = styled.div`
+  margin-top: ${({ theme }) => theme.space.md};
+  padding: ${({ theme }) => theme.space.sm} 0;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  font-family: ${({ theme }) => theme.fonts.body};
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.text};
+  word-break: break-word;
 `;
 
 const NavList = styled.nav`
@@ -90,8 +92,8 @@ const NavLink = styled(Link)`
   @media (hover: hover) {
     &:hover {
       transition: background 0.2s, color 0.2s;
-      background: #000000;
-      color: #ffffff;
+      background: ${({ theme }) => theme.colors.text};
+      color: ${({ theme }) => theme.colors.bg};
     }
   }
 `;
@@ -111,21 +113,25 @@ export function MobileNav({
 }: MobileNavProps) {
   const { user, logout, isAdmin } = useAuth();
 
+  const userLabel =
+    user?.role === "admin"
+      ? "👤 admin"
+      : user
+        ? `👤 ${user.displayName || user.username}`
+        : null;
+
   const tree = (
     <>
       <Overlay open={isOpen} onClick={onClose} aria-hidden={!isOpen} />
-      <Panel open={isOpen} aria-hidden={!isOpen}>
+      <Panel open={isOpen} aria-hidden={!isOpen} aria-label="Főmenü">
         <TopRow>
-          <ThemeToggleWrap
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <ThemeToggle />
-          </ThemeToggleWrap>
           <CloseBtn type="button" onClick={onClose} aria-label="Menü bezárása">
             ×
           </CloseBtn>
         </TopRow>
+        {user && userLabel ? (
+          <UserBlock title={user.username}>{userLabel}</UserBlock>
+        ) : null}
         <NavList onClick={onClose}>
           <NavLink to="/">Kezdőlap</NavLink>
           <NavLink to="/shop">Bolt</NavLink>

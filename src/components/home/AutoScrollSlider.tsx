@@ -19,7 +19,7 @@ const scroll = keyframes`
 
 const Section = styled.section`
   padding: ${({ theme }) => theme.space.xl} 0;
-  background: ${({ theme }) => theme.colors.bg};
+  background: transparent;
   width: 100%;
   max-width: 100%;
   min-width: 0;

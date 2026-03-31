@@ -18,7 +18,8 @@ const Shell = styled.div`
   display: flex;
   flex-direction: column;
   font-family: ${({ theme }) => theme.fonts.body};
-  background: ${({ theme }) => theme.colors.bg};
+  background: ${({ theme }) => theme.colors.pageBackground};
+  background-color: ${({ theme }) => theme.colors.bg};
   color: ${({ theme }) => theme.colors.text};
   width: 100%;
   overflow-x: hidden;

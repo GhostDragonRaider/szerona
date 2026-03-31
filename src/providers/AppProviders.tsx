@@ -19,7 +19,7 @@ import {
 function BodyThemeSync() {
   const theme = useTheme();
   useEffect(() => {
-    document.body.style.backgroundColor = theme.colors.bg;
+    document.body.style.background = theme.colors.pageBackground;
     document.body.style.color = theme.colors.text;
   }, [theme]);
   return null;

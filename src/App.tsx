@@ -6,6 +6,7 @@ import { Route, Routes } from "react-router-dom";
 import { AdminDashboard } from "./components/admin/AdminDashboard";
 import { MainLayout } from "./components/layout/MainLayout";
 import { AccountPage } from "./pages/AccountPage";
+import { CheckoutPage } from "./pages/CheckoutPage";
 import { HomePage } from "./pages/HomePage";
 import { ShopPage } from "./components/shop/ShopPage";
 import { ProtectedAccount } from "./routes/ProtectedAccount";
@@ -17,6 +18,7 @@ export default function App() {
       <Route element={<MainLayout />}>
         <Route index element={<HomePage />} />
         <Route path="shop" element={<ShopPage />} />
+        <Route path="checkout" element={<CheckoutPage />} />
         <Route
           path="account"
           element={

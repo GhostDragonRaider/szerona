@@ -12,7 +12,7 @@ const Section = styled.section`
   overflow: hidden;
   padding: ${({ theme }) => theme.space.xl} ${({ theme }) => theme.space.md}
     ${({ theme }) => theme.space.xl};
-  background: ${({ theme }) => theme.colors.gradientHero};
+  background: transparent;
   width: 100%;
   box-sizing: border-box;
   @media (max-width: ${({ theme }) => `calc(${theme.breakpoints.lg} - 1px)`}) {
@@ -111,9 +111,9 @@ const CtaBase = styled(Link)`
   @media (hover: hover) {
     &:hover {
       transition: border-color 0.2s, color 0.2s, background 0.2s;
-      border-color: #000000;
-      color: #ffffff;
-      background: #000000;
+      border-color: ${({ theme }) => theme.colors.text};
+      color: ${({ theme }) => theme.colors.bg};
+      background: ${({ theme }) => theme.colors.text};
     }
   }
 `;

@@ -19,7 +19,8 @@ const Bar = styled.nav`
     ${({ theme }) => theme.space.sm},
     env(safe-area-inset-bottom, 0px)
   );
-  background: #000000;
+  background: ${({ theme }) => theme.colors.mobileNavBg};
+  border-top: 1px solid ${({ theme }) => theme.colors.headerBorder};
   border-top-left-radius: ${({ theme }) => theme.radii.md};
   border-top-right-radius: ${({ theme }) => theme.radii.md};
   box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
@@ -37,7 +38,7 @@ const Item = styled(NavLink)`
   gap: 4px;
   padding: ${({ theme }) => theme.space.xs};
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.55);
+  color: ${({ theme }) => theme.colors.mobileNavText};
   font-family: ${({ theme }) => theme.fonts.body};
   font-size: 0.68rem;
   font-weight: 500;
@@ -45,7 +46,7 @@ const Item = styled(NavLink)`
   min-width: 0;
   transition: none;
   &.active {
-    color: #ffffff;
+    color: ${({ theme }) => theme.colors.mobileNavTextActive};
   }
   svg {
     flex-shrink: 0;
@@ -70,7 +71,7 @@ const ItemButton = styled.button`
   border: none;
   background: transparent;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.55);
+  color: ${({ theme }) => theme.colors.mobileNavText};
   font-family: ${({ theme }) => theme.fonts.body};
   font-size: 0.68rem;
   font-weight: 500;

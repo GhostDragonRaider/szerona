@@ -143,7 +143,7 @@ export function AccountPayment() {
           </Select>
         </Field>
         <Field>
-          Kártyabirtokos neve
+          Kártyán szereplő név
           <Input
             value={holderName}
             onChange={(e) => setHolderName(e.target.value)}

@@ -3,6 +3,7 @@
  * A CartContext isOpen állapotától függ; overlay kattintásra záródik.
  */
 import styled from "@emotion/styled";
+import { useNavigate } from "react-router-dom";
 import { useCart } from "../../context/CartContext";
 
 const Overlay = styled.div<{ open: boolean }>`
@@ -136,22 +137,32 @@ const Total = styled.p`
   color: ${({ theme }) => theme.colors.text};
 `;
 
-const ClearBtn = styled.button`
+/** Ugyanaz a „fekete” kitöltött stílus, mint a termékkártya Kosárba gombjánál. */
+const SolidBtn = styled.button`
   width: 100%;
   padding: ${({ theme }) => theme.space.md};
   border-radius: ${({ theme }) => theme.radii.md};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: transparent;
-  color: ${({ theme }) => theme.colors.textMuted};
+  border: none;
+  background: ${({ theme }) => theme.colors.text};
+  color: ${({ theme }) => theme.colors.bg};
   cursor: pointer;
   font-family: ${({ theme }) => theme.fonts.body};
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: opacity 0.2s;
   &:hover {
-    background: #000000;
-    color: #ffffff;
-    border-color: #000000;
+    opacity: 0.9;
+  }
+  &:active {
+    transform: scale(0.99);
   }
 `;
+
+const CheckoutBtn = styled(SolidBtn)`
+  margin-bottom: ${({ theme }) => theme.space.sm};
+`;
+
+const ClearBtn = styled(SolidBtn)``;
 
 const EmptyMsg = styled.p`
   margin: ${({ theme }) => theme.space.xl};
@@ -159,6 +170,7 @@ const EmptyMsg = styled.p`
 `;
 
 export function CartDrawer() {
+  const navigate = useNavigate();
   const {
     lines,
     isOpen,
@@ -217,9 +229,20 @@ export function CartDrawer() {
             Összesen: {totalPrice.toLocaleString("hu-HU")} Ft
           </Total>
           {lines.length > 0 ? (
-            <ClearBtn type="button" onClick={() => clearCart()}>
-              Kosár ürítése
-            </ClearBtn>
+            <>
+              <CheckoutBtn
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/checkout");
+                }}
+              >
+                Tovább a fizetéshez
+              </CheckoutBtn>
+              <ClearBtn type="button" onClick={() => clearCart()}>
+                Kosár ürítése
+              </ClearBtn>
+            </>
           ) : null}
         </Foot>
       </Panel>

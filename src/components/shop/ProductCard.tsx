@@ -88,8 +88,8 @@ const Btn = styled.button`
   cursor: pointer;
   transition: background 0.2s, transform 0.15s;
   &:hover {
-    background: #000000;
-    color: #ffffff;
+    background: ${({ theme }) => theme.colors.text};
+    color: ${({ theme }) => theme.colors.bg};
   }
   &:active {
     transform: scale(0.98);

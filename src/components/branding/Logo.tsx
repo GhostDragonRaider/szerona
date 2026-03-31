@@ -1,182 +1,187 @@
 /**
- * Serona márkalogó: alap/helyzet nélkül `SERONA_LOGO_PNG` maszk + gradient;
- * hero: nagy PNG; lábléc: világos módban fekete PNG, sötétben fehér PNG.
+ * Serona márka: S-jel + SERONA szójel + tagline; világos/sötét módhoz külön raszter.
  */
 import styled from "@emotion/styled";
 import { Link } from "react-router-dom";
 import {
-  SERONA_LOGO_DARK_PNG,
-  SERONA_LOGO_PNG,
+  BRAND_TAGLINE,
+  SERONA_MARK_DARK_BG,
+  SERONA_MARK_LIGHT_BG,
 } from "../../constants/branding";
 import { useThemeMode } from "../../context/ThemeModeContext";
 
+const TAGLINE = BRAND_TAGLINE;
+
 const Wrap = styled(Link)<{ $inline?: boolean }>`
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   text-decoration: none;
   color: inherit;
   ${({ $inline }) => $inline && `vertical-align: middle;`}
 `;
 
-const Mark = styled.div<{ $variant: "default" | "compact" | "footer" }>`
-  flex-shrink: 0;
-  display: block;
-  background: ${({ theme }) =>
-    `linear-gradient(135deg, ${theme.colors.accent}, #f97316)`};
-  -webkit-mask-image: url(${SERONA_LOGO_PNG});
-  -webkit-mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-image: url(${SERONA_LOGO_PNG});
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  mask-position: center;
-  ${({ $variant, theme }) =>
-    $variant === "footer"
-      ? `
-    width: 52px;
-    height: calc(52px * 338 / 401);
-    @media (max-width: ${theme.breakpoints.md}) {
-      width: 44px;
-      height: calc(44px * 338 / 401);
-    }
-  `
-      : $variant === "compact"
-        ? `
-    width: 100px;
-    height: calc(100px * 338 / 401);
-    @media (max-width: ${theme.breakpoints.md}) {
-      width: 88px;
-      height: calc(88px * 338 / 401);
-    }
-  `
-        : `
-    width: 148px;
-    height: calc(148px * 338 / 401);
-    @media (max-width: ${theme.breakpoints.md}) {
-      width: 128px;
-      height: calc(128px * 338 / 401);
-    }
-  `}
+const BrandStack = styled.div<{ $variant: "bar" | "hero" | "footer" }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  gap: ${({ $variant, theme }) =>
+    $variant === "hero" ? theme.space.md : theme.space.sm};
 `;
 
-/** Sötét mód: ugyanaz a méret, raszteres PNG (nem gradient maszk). */
-const LogoRaster = styled.img<{ $variant: "default" | "compact" | "footer" }>`
-  flex-shrink: 0;
+const MarkImg = styled.img<{ $variant: "bar" | "hero" | "footer" }>`
   display: block;
   object-fit: contain;
+  flex-shrink: 0;
   ${({ $variant, theme }) =>
-    $variant === "footer"
+    $variant === "bar"
       ? `
-    width: 52px;
-    height: calc(52px * 338 / 401);
-    @media (max-width: ${theme.breakpoints.md}) {
-      width: 44px;
-      height: calc(44px * 338 / 401);
+    width: 80px;
+    height: auto;
+    @media (min-width: ${theme.breakpoints.sm}) {
+      width: 88px;
     }
   `
-      : $variant === "compact"
+      : $variant === "footer"
         ? `
-    width: 100px;
-    height: calc(100px * 338 / 401);
+    width: 96px;
+    height: auto;
     @media (max-width: ${theme.breakpoints.md}) {
-      width: 88px;
-      height: calc(88px * 338 / 401);
+      width: 80px;
     }
   `
         : `
-    width: 148px;
-    height: calc(148px * 338 / 401);
-    @media (max-width: ${theme.breakpoints.md}) {
-      width: 128px;
-      height: calc(128px * 338 / 401);
-    }
+    width: min(100%, clamp(320px, 72vw, 520px));
+    height: auto;
   `}
 `;
 
-/** Hero: teljes szélességű sorban középre igazított link + kép */
+/** Geometrikus sans, erős betűköz (mint a referencia); 500 = kicsit vékonyabb, mint a korábbi 700. */
+const Wordmark = styled.span<{ $variant: "bar" | "hero" | "footer" }>`
+  font-family: ${({ theme }) => theme.fonts.body};
+  font-weight: 500;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.42em;
+  line-height: 1.15;
+  color: ${({ theme }) => theme.colors.text};
+  ${({ $variant, theme }) =>
+    $variant === "bar"
+      ? `
+    font-size: clamp(0.68rem, 2vw, 0.82rem);
+    letter-spacing: 0.32em;
+    color: ${theme.colors.headerText};
+  `
+      : $variant === "footer"
+        ? `
+    font-size: clamp(0.88rem, 1.8vw, 1rem);
+    letter-spacing: 0.38em;
+  `
+        : `
+    font-size: clamp(1.15rem, 3.8vw, 1.55rem);
+    letter-spacing: 0.48em;
+  `}
+`;
+
+const MicroTagline = styled.span<{ $variant: "bar" | "hero" | "footer" }>`
+  display: block;
+  font-family: ${({ theme }) => theme.fonts.body};
+  font-weight: 400;
+  line-height: 1.45;
+  color: ${({ theme }) => theme.colors.textMuted};
+  text-align: center;
+  width: 100%;
+  margin: 0;
+  padding: 0 ${({ theme }) => theme.space.xs};
+  box-sizing: border-box;
+  ${({ $variant, theme }) =>
+    $variant === "bar"
+      ? `
+    font-size: clamp(0.5rem, 1.35vw, 0.625rem);
+    max-width: 14rem;
+    letter-spacing: 0.02em;
+    color: ${theme.colors.headerTextMuted};
+  `
+      : $variant === "footer"
+        ? `
+    font-size: 0.8125rem;
+    max-width: min(100%, 20rem);
+    letter-spacing: 0.03em;
+  `
+        : `
+    font-size: clamp(0.78rem, 1.85vw, 0.92rem);
+    max-width: min(100%, 22rem);
+    letter-spacing: 0.04em;
+  `}
+`;
+
 const HeroLogoLink = styled(Link)`
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: min(100%, 560px);
+  max-width: min(100%, 520px);
   margin-inline: auto;
   text-decoration: none;
   color: inherit;
 `;
 
-/** Hero: valódi kép, fix képarány */
-const HeroImg = styled.img`
-  display: block;
-  width: min(100%, clamp(260px, 52vw, 560px));
-  height: auto;
-  object-fit: contain;
-  margin-inline: auto;
-`;
-
 interface LogoProps {
-  /** Ha false, kisebb méret (a kép továbbra is teljes logó: ikon + felirat). */
-  showText?: boolean;
-  /** Lábléc / szövegköz: kisméretű; hero: főoldali hős szekció nagy logója. */
-  variant?: "default" | "footer" | "hero";
+  /** Fejléc közepe: kisméretű. */
+  variant?: "bar" | "hero" | "footer";
+  /** Csak az S-jel (nav bar), SERONA és tagline nélkül. */
+  markOnly?: boolean;
   className?: string;
 }
 
-export function Logo({ showText = true, variant = "default", className }: LogoProps) {
+export function Logo({
+  variant = "bar",
+  markOnly = false,
+  className,
+}: LogoProps) {
   const { mode } = useThemeMode();
-  const darkLogo = mode === "dark";
-  const logoSrc = darkLogo ? SERONA_LOGO_DARK_PNG : SERONA_LOGO_PNG;
-  const markVariant: "default" | "compact" | "footer" =
-    variant === "footer"
-      ? "footer"
-      : showText
-        ? "default"
-        : "compact";
+  const onDarkSurface = mode === "dark";
+  const markSrc = onDarkSurface ? SERONA_MARK_DARK_BG : SERONA_MARK_LIGHT_BG;
   const inline = variant === "footer";
+
+  const stack = (
+    <BrandStack $variant={variant}>
+      <MarkImg
+        src={markSrc}
+        alt=""
+        decoding="async"
+        $variant={variant}
+        {...(variant === "hero"
+          ? { fetchPriority: "high" as const }
+          : {})}
+      />
+      {markOnly ? null : (
+        <>
+          <Wordmark $variant={variant}>SERONA</Wordmark>
+          <MicroTagline $variant={variant}>{TAGLINE}</MicroTagline>
+        </>
+      )}
+    </BrandStack>
+  );
 
   if (variant === "hero") {
     return (
       <HeroLogoLink to="/" className={className} aria-label="Serona kezdőlap">
-        <HeroImg
-          src={logoSrc}
-          alt=""
-          width={401}
-          height={338}
-          decoding="async"
-          fetchPriority="high"
-        />
+        {stack}
       </HeroLogoLink>
     );
   }
 
-  /** Lábléc: mindig raszter – világos mód fekete logó, sötét mód fehér logó. */
-  if (variant === "footer") {
-    const footerSrc = darkLogo ? SERONA_LOGO_DARK_PNG : SERONA_LOGO_PNG;
-    return (
-      <Wrap to="/" className={className} $inline aria-label="Serona kezdőlap">
-        <LogoRaster
-          $variant="footer"
-          src={footerSrc}
-          alt=""
-          decoding="async"
-        />
-      </Wrap>
-    );
-  }
-
   return (
-    <Wrap to="/" className={className} $inline={inline} aria-label="Serona kezdőlap">
-      {darkLogo ? (
-        <LogoRaster
-          $variant={markVariant}
-          src={SERONA_LOGO_DARK_PNG}
-          alt=""
-          decoding="async"
-        />
-      ) : (
-        <Mark $variant={markVariant} role="img" aria-hidden />
-      )}
+    <Wrap
+      to="/"
+      className={className}
+      $inline={inline}
+      aria-label="Serona kezdőlap"
+    >
+      {stack}
     </Wrap>
   );
 }
