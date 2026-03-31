@@ -1,5 +1,5 @@
 /**
- * Lábléc: középre igazított márkasor (logó + tagline), alatta középen a jogi sor.
+ * Lábléc: középen S-jel logó (felirat nélkül), bevezető szöveg, jogi sor.
  */
 import styled from "@emotion/styled";
 import { Logo } from "../branding/Logo";
@@ -26,7 +26,7 @@ const Inner = styled.div`
   gap: ${({ theme }) => theme.space.md};
 `;
 
-/** Márka (S-jel + SERONA + tagline) + bevezető szöveg */
+/** Márka (csak S-jel) + bevezető szöveg */
 const BrandBlock = styled.div`
   display: flex;
   flex-direction: column;
@@ -60,7 +60,7 @@ export function Footer() {
     <Foot>
       <Inner>
         <BrandBlock>
-          <Logo variant="footer" />
+          <Logo variant="footer" markOnly />
           <Tagline>
             Prémium utcai divat. Minőségi anyagok, merész sziluettek – a Serona a
             mindennapi önkifejezésedhez készült.
