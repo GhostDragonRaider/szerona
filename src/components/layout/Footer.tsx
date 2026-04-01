@@ -1,8 +1,7 @@
 /**
- * Lábléc: középen S-jel logó (felirat nélkül), bevezető szöveg, jogi sor.
+ * Lábléc: bevezető szöveg, jogi sor (logó nélkül).
  */
 import styled from "@emotion/styled";
-import { Logo } from "../branding/Logo";
 
 const Foot = styled.footer`
   margin-top: auto;
@@ -26,16 +25,6 @@ const Inner = styled.div`
   gap: ${({ theme }) => theme.space.md};
 `;
 
-/** Márka (csak S-jel) + bevezető szöveg */
-const BrandBlock = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: ${({ theme }) => theme.space.md};
-  width: 100%;
-  max-width: 36rem;
-`;
-
 const Tagline = styled.p`
   margin: 0;
   font-size: 0.8125rem;
@@ -43,6 +32,7 @@ const Tagline = styled.p`
   color: ${({ theme }) => theme.colors.textMuted};
   text-align: center;
   max-width: 48rem;
+  width: 100%;
 `;
 
 const Copy = styled.p`
@@ -59,13 +49,10 @@ export function Footer() {
   return (
     <Foot>
       <Inner>
-        <BrandBlock>
-          <Logo variant="footer" markOnly />
-          <Tagline>
-            Prémium utcai divat. Minőségi anyagok, merész sziluettek – a Serona a
-            mindennapi önkifejezésedhez készült.
-          </Tagline>
-        </BrandBlock>
+        <Tagline>
+          Prémium utcai divat. Minőségi anyagok, merész sziluettek – a Serona a
+          mindennapi önkifejezésedhez készült.
+        </Tagline>
         <Copy>© {year} Serona. Minden jog fenntartva.</Copy>
       </Inner>
     </Foot>

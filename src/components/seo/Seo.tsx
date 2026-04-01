@@ -4,12 +4,13 @@
  */
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
+import { SERONA_LOGO_LIGHT_PNG } from "../../constants/branding";
 
 const DEFAULT_DESCRIPTION = "Serona – prémium utcai divat webáruház";
 
-/** A /serona-logo.png eredeti képaránya (OG kép méretekhez). */
-const OG_IMAGE_WIDTH = 401;
-const OG_IMAGE_HEIGHT = 338;
+/** A serona-logo-light.png képaránya (OG / JSON-LD). */
+const OG_IMAGE_WIDTH = 1536;
+const OG_IMAGE_HEIGHT = 1024;
 
 const ROUTE_META: Record<
   string,
@@ -46,7 +47,7 @@ function siteOrigin(): string {
 function jsonLdHome(origin: string) {
   const orgId = `${origin}/#organization`;
   const siteId = `${origin}/#website`;
-  const logoUrl = `${origin}/serona-logo.png`;
+  const logoUrl = `${origin}${SERONA_LOGO_LIGHT_PNG}`;
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -84,7 +85,7 @@ export function Seo() {
   const canonical = origin
     ? `${origin}${pathname === "/" ? "/" : pathname}`
     : "";
-  const ogImage = origin ? `${origin}/serona-logo.png` : "";
+  const ogImage = origin ? `${origin}${SERONA_LOGO_LIGHT_PNG}` : "";
 
   return (
     <Helmet prioritizeSeoTags htmlAttributes={{ lang: "hu" }}>

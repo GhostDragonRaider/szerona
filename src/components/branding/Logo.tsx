@@ -1,12 +1,12 @@
 /**
- * Serona márka: S-jel + SERONA szójel + tagline; világos/sötét módhoz külön raszter.
+ * Serona márka: logó kép + SERONA szójel + tagline; világos/sötét PNG.
  */
 import styled from "@emotion/styled";
 import { Link } from "react-router-dom";
 import {
   BRAND_TAGLINE,
-  SERONA_MARK_DARK_BG,
-  SERONA_MARK_LIGHT_BG,
+  SERONA_LOGO_DARK_PNG,
+  SERONA_LOGO_LIGHT_PNG,
 } from "../../constants/branding";
 import { useThemeMode } from "../../context/ThemeModeContext";
 
@@ -143,7 +143,7 @@ export function Logo({
 }: LogoProps) {
   const { mode } = useThemeMode();
   const onDarkSurface = mode === "dark";
-  const markSrc = onDarkSurface ? SERONA_MARK_DARK_BG : SERONA_MARK_LIGHT_BG;
+  const markSrc = onDarkSurface ? SERONA_LOGO_DARK_PNG : SERONA_LOGO_LIGHT_PNG;
   const inline = variant === "footer";
 
   const stack = (
