@@ -157,7 +157,7 @@ function buildVerificationUrl(token) {
 }
 
 function shouldExposeDirectAuthLink(emailSent) {
-  return config.nodeEnv !== "production" || config.relaxedAuthGuards || !emailSent;
+  return config.nodeEnv !== "production" || !emailSent;
 }
 
 async function sendUserVerificationEmail({

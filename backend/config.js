@@ -1,7 +1,9 @@
 const path = require("path");
 const dotenv = require("dotenv");
 
-dotenv.config({ path: path.join(__dirname, ".env") });
+if (process.env.VERCEL !== "1") {
+  dotenv.config({ path: path.join(__dirname, ".env") });
+}
 
 const DEFAULT_CORS_ORIGINS = [
   "http://localhost:5173",
@@ -56,6 +58,7 @@ const bruteForceMaxAttempts = Number.parseInt(
   process.env.BRUTE_FORCE_MAX_ATTEMPTS ?? "5",
   10,
 );
+const isVercel = process.env.VERCEL === "1";
 const transferPaymentDueDays = Number.parseInt(
   process.env.TRANSFER_PAYMENT_DUE_DAYS ?? "3",
   10,
@@ -64,13 +67,13 @@ const lowStockThreshold = Number.parseInt(
   process.env.LOW_STOCK_THRESHOLD ?? "5",
   10,
 );
-const isVercel = process.env.VERCEL === "1";
 const sqlitePathFromEnv = emptyStringToNull(process.env.SQLITE_PATH);
-const sqlitePath = sqlitePathFromEnv
-  ? path.resolve(__dirname, sqlitePathFromEnv)
-  : isVercel && !process.env.DATABASE_URL
+const sqlitePath =
+  isVercel && !process.env.DATABASE_URL
     ? path.join("/tmp", "serona.sqlite")
-  : path.join(__dirname, "data", "serona.sqlite");
+    : sqlitePathFromEnv
+      ? path.resolve(__dirname, sqlitePathFromEnv)
+      : path.join(__dirname, "data", "serona.sqlite");
 const paymentProviderFromEnv = emptyStringToNull(process.env.PAYMENT_PROVIDER);
 const paymentProvider =
   paymentProviderFromEnv && ["stripe", "barion", "simplepay", "custom"].includes(paymentProviderFromEnv)
