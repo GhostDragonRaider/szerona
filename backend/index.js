@@ -24,6 +24,39 @@ function ensureReady() {
   return readyPromise;
 }
 
+function registerRoute(path, ...handlers) {
+  app.use(path, ...handlers);
+
+  if (path.startsWith("/api/")) {
+    const unprefixedPath = path.slice(4);
+    if (unprefixedPath) {
+      app.use(unprefixedPath, ...handlers);
+    }
+  }
+}
+
+function sendHealth(res) {
+  res.json({
+    ok: true,
+    message: "Serona API fut",
+    ido: new Date().toISOString(),
+    startedAt: serverStartedAt.toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    emailVerificationEnabled: config.emailVerificationEnabled,
+    database: getDatabaseDriver(),
+    auth: {
+      accessToken: config.accessTokenExpiresIn,
+      refreshTokenDays: config.refreshTokenDays,
+      passwordResetMinutes: config.passwordResetMinutes,
+      emailVerificationMinutes: config.emailVerificationMinutes,
+    },
+    commerce: {
+      cartReservationMinutes: config.cartReservationMinutes,
+      transferPaymentDueDays: config.transferPaymentDueDays,
+    },
+  });
+}
+
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 
@@ -57,35 +90,16 @@ app.use(async (req, res, next) => {
   }
 });
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    ok: true,
-    message: "Serona API fut",
-    ido: new Date().toISOString(),
-    startedAt: serverStartedAt.toISOString(),
-    uptimeSeconds: Math.floor(process.uptime()),
-    emailVerificationEnabled: config.emailVerificationEnabled,
-    database: getDatabaseDriver(),
-    auth: {
-      accessToken: config.accessTokenExpiresIn,
-      refreshTokenDays: config.refreshTokenDays,
-      passwordResetMinutes: config.passwordResetMinutes,
-      emailVerificationMinutes: config.emailVerificationMinutes,
-    },
-    commerce: {
-      cartReservationMinutes: config.cartReservationMinutes,
-      transferPaymentDueDays: config.transferPaymentDueDays,
-    },
-  });
-});
+app.get("/api/health", (req, res) => sendHealth(res));
+app.get("/health", (req, res) => sendHealth(res));
 
-app.use("/api/auth", authRouter);
-app.use("/api/admin", adminRouter);
-app.use("/api/account", accountRouter);
-app.use("/api/commerce", commerceRouter);
-app.use("/api/products", productsRouter);
-app.use("/api/cart", cartRouter);
-app.use("/api/orders", ordersRouter);
+registerRoute("/api/auth", authRouter);
+registerRoute("/api/admin", adminRouter);
+registerRoute("/api/account", accountRouter);
+registerRoute("/api/commerce", commerceRouter);
+registerRoute("/api/products", productsRouter);
+registerRoute("/api/cart", cartRouter);
+registerRoute("/api/orders", ordersRouter);
 
 app.use((req, res) => {
   res.status(404).json({
