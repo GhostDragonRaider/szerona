@@ -1,11 +1,13 @@
 /**
- * Admin felület: oldalsó menü (termékek / általános), csak admin szerepkörrel elérhető.
+ * Adminfelület: oldalsó menü (termékek / általános), csak admin szerepkörrel elérhető.
  * Termékkezelés: csoportonkénti szűrés, lista, törlés, szerkesztés, új termék.
  * Általános: jelszó, hero szövegek, színek, szekciók láthatósága.
  */
 import styled from "@emotion/styled";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { AdminOverview } from "./AdminOverview";
+import { AdminOrders } from "./AdminOrders";
 import { AdminSeo } from "../seo/AdminSeo";
 import { AdminProducts } from "./AdminProducts";
 import { AdminSettings } from "./AdminSettings";
@@ -158,10 +160,10 @@ const Content = styled.div`
   }
 `;
 
-export type AdminTab = "products" | "settings";
+export type AdminTab = "overview" | "products" | "orders" | "settings";
 
 export function AdminDashboard() {
-  const [tab, setTab] = useState<AdminTab>("products");
+  const [tab, setTab] = useState<AdminTab>("overview");
 
   return (
     <Page>
@@ -178,10 +180,24 @@ export function AdminDashboard() {
         <Side role="navigation" aria-label="Admin menü">
           <TabBtn
             type="button"
+            active={tab === "overview"}
+            onClick={() => setTab("overview")}
+          >
+            Áttekintés
+          </TabBtn>
+          <TabBtn
+            type="button"
             active={tab === "products"}
             onClick={() => setTab("products")}
           >
             Termékek kezelése
+          </TabBtn>
+          <TabBtn
+            type="button"
+            active={tab === "orders"}
+            onClick={() => setTab("orders")}
+          >
+            Rendelések
           </TabBtn>
           <TabBtn
             type="button"
@@ -192,7 +208,10 @@ export function AdminDashboard() {
           </TabBtn>
         </Side>
         <Content>
-          {tab === "products" ? <AdminProducts /> : <AdminSettings />}
+          {tab === "overview" ? <AdminOverview /> : null}
+          {tab === "products" ? <AdminProducts /> : null}
+          {tab === "orders" ? <AdminOrders /> : null}
+          {tab === "settings" ? <AdminSettings /> : null}
         </Content>
       </Body>
     </Page>

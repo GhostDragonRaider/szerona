@@ -1,7 +1,6 @@
 /**
- * Oldal szintű beállítások: hero alcím, kiemelő szín, szekciók láthatósága.
- * Az admin „Általános” panel módosítja; localStorage-ban marad.
- * A jelszó módosítás (admin) külön kulcsban tárolódik.
+ * Oldal szintu beallitasok: hero alcim, kiemelo szin, szekciok lathatosaga.
+ * Ezek jelenleg tovabbra is localStorage-ban maradnak.
  */
 import {
   createContext,
@@ -14,23 +13,17 @@ import {
 } from "react";
 import { seronaTheme } from "../theme/emotionTheme";
 
-import {
-  getStoredAdminPassword,
-  setStoredAdminPassword,
-} from "../utils/adminPassword";
-
 const SETTINGS_KEY = "szerona_site_settings_v1";
 
 export interface SiteSettings {
   heroSubtitle: string;
-  /** Hex szín, pl. #ff3d5a – accent felülírás */
   accentColor: string;
   showNewsSection: boolean;
   showCategoryStrip: boolean;
 }
 
 const DEFAULT_SETTINGS: SiteSettings = {
-  heroSubtitle: "Utcai divat. Merész színek. Te vagy a középpontban.",
+  heroSubtitle: "Utcai divat. Meresz szinek. Te vagy a kozeppontban.",
   accentColor: seronaTheme.colors.accent,
   showNewsSection: true,
   showCategoryStrip: true,
@@ -49,21 +42,17 @@ function loadSettings(): SiteSettings {
   } catch {
     /* */
   }
+
   return DEFAULT_SETTINGS;
 }
 
-function saveSettings(s: SiteSettings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+function saveSettings(settings: SiteSettings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
 interface SettingsContextValue {
   settings: SiteSettings;
   updateSettings: (patch: Partial<SiteSettings>) => void;
-  /** Admin jelszó változtatás – következő bejelentkezéshez (admin felhasználó). */
-  changeAdminPassword: (
-    currentPassword: string,
-    newPassword: string,
-  ) => { ok: boolean; message?: string };
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -78,42 +67,26 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [settings]);
 
   const updateSettings = useCallback((patch: Partial<SiteSettings>) => {
-    setSettings((prev) => ({ ...prev, ...patch }));
+    setSettings((previous) => ({ ...previous, ...patch }));
   }, []);
-
-  const changeAdminPassword = useCallback(
-    (currentPassword: string, newPassword: string) => {
-      const stored = getStoredAdminPassword();
-      if (currentPassword !== stored) {
-        return { ok: false, message: "A jelenlegi jelszó nem egyezik." };
-      }
-      if (newPassword.length < 4) {
-        return { ok: false, message: "Az új jelszó legalább 4 karakter legyen." };
-      }
-      setStoredAdminPassword(newPassword);
-      return { ok: true };
-    },
-    [],
-  );
 
   const value = useMemo(
     () => ({
       settings,
       updateSettings,
-      changeAdminPassword,
     }),
-    [settings, updateSettings, changeAdminPassword],
+    [settings, updateSettings],
   );
 
   return (
-    <SettingsContext.Provider value={value}>
-      {children}
-    </SettingsContext.Provider>
+    <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>
   );
 }
 
 export function useSettings() {
-  const ctx = useContext(SettingsContext);
-  if (!ctx) throw new Error("useSettings must be used within SettingsProvider");
-  return ctx;
+  const context = useContext(SettingsContext);
+  if (!context) {
+    throw new Error("useSettings must be used within SettingsProvider");
+  }
+  return context;
 }

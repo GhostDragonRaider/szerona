@@ -1,10 +1,10 @@
 /**
- * Admin általános beállítások: admin jelszó csere, hero alcím, accent szín,
- * hírek és kategória sáv ki/bekapcsolása – mind a SettingsContext-en keresztül.
+ * Admin altalanos beallitasok: oldal megjelenes + admin kapcsolat + admin jelszo.
  */
 import styled from "@emotion/styled";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
 
 const Title = styled.h2`
@@ -85,21 +85,51 @@ const Btn = styled.button`
 `;
 
 const Msg = styled.p<{ ok?: boolean }>`
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   color: ${({ theme, ok }) => (ok ? theme.colors.success : theme.colors.accent)};
 `;
 
+const Lead = styled.p`
+  max-width: 640px;
+  margin: 0 0 ${({ theme }) => theme.space.md};
+  color: ${({ theme }) => theme.colors.textMuted};
+  line-height: 1.55;
+`;
+
 export function AdminSettings() {
-  const { settings, updateSettings, changeAdminPassword } = useSettings();
+  const { settings, updateSettings } = useSettings();
+  const { user, updateAdminContact, changeAccountPassword, logoutAllSessions } =
+    useAuth();
+
   const [heroSubtitle, setHeroSubtitle] = useState(settings.heroSubtitle);
   const [accent, setAccent] = useState(settings.accentColor);
   const [showNews, setShowNews] = useState(settings.showNewsSection);
   const [showCats, setShowCats] = useState(settings.showCategoryStrip);
 
+  const [adminEmail, setAdminEmail] = useState(user?.email ?? "");
+  const [adminPhone, setAdminPhone] = useState(user?.phone ?? "");
+  const [adminCurrentPassword, setAdminCurrentPassword] = useState("");
+  const [adminMsg, setAdminMsg] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
+  const [isSavingAdmin, setIsSavingAdmin] = useState(false);
+
   const [curPass, setCurPass] = useState("");
   const [newPass, setNewPass] = useState("");
   const [newPass2, setNewPass2] = useState("");
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [sessionMsg, setSessionMsg] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
+  const [isLoggingOutEverywhere, setIsLoggingOutEverywhere] = useState(false);
+
+  useEffect(() => {
+    setAdminEmail(user?.email ?? "");
+    setAdminPhone(user?.phone ?? "");
+  }, [user?.email, user?.phone]);
 
   function saveSite(e: FormEvent) {
     e.preventDefault();
@@ -111,25 +141,68 @@ export function AdminSettings() {
     });
   }
 
-  function savePassword(e: FormEvent) {
+  async function saveAdminContact(e: FormEvent) {
     e.preventDefault();
-    setPwMsg(null);
-    if (newPass !== newPass2) {
-      setPwMsg({ ok: false, text: "Az új jelszavak nem egyeznek." });
+    if (isSavingAdmin) return;
+
+    setAdminMsg(null);
+    setIsSavingAdmin(true);
+    const res = await updateAdminContact(
+      adminEmail,
+      adminPhone,
+      adminCurrentPassword,
+    );
+    setIsSavingAdmin(false);
+
+    if (!res.ok) {
+      setAdminMsg({ ok: false, text: res.message ?? "Hiba." });
       return;
     }
-    const res = changeAdminPassword(curPass, newPass);
+
+    setAdminMsg({ ok: true, text: "Admin adatok frissitve." });
+    setAdminCurrentPassword("");
+  }
+
+  async function savePassword(e: FormEvent) {
+    e.preventDefault();
+    if (isSavingPassword) return;
+
+    setPwMsg(null);
+    if (newPass !== newPass2) {
+      setPwMsg({ ok: false, text: "Az uj jelszavak nem egyeznek." });
+      return;
+    }
+
+    setIsSavingPassword(true);
+    const res = await changeAccountPassword(curPass, newPass);
+    setIsSavingPassword(false);
+
     if (!res.ok) {
       setPwMsg({ ok: false, text: res.message ?? "Hiba." });
       return;
     }
-    setPwMsg({
-      ok: true,
-      text: "Jelszó frissítve. Következő belépéshez már az új jelszót használd.",
-    });
+
+    setPwMsg({ ok: true, text: "Admin jelszo frissitve." });
     setCurPass("");
     setNewPass("");
     setNewPass2("");
+  }
+
+  async function handleLogoutAllSessions() {
+    if (isLoggingOutEverywhere) return;
+
+    setSessionMsg(null);
+    setIsLoggingOutEverywhere(true);
+    const result = await logoutAllSessions();
+    setIsLoggingOutEverywhere(false);
+    setSessionMsg({
+      ok: result.ok,
+      text:
+        result.message ??
+        (result.ok
+          ? "Minden eszkozrol kijelentkeztettel."
+          : "Nem sikerult kijelentkeztetni minden eszkozt."),
+    });
   }
 
   return (
@@ -176,7 +249,58 @@ export function AdminSettings() {
       </Section>
 
       <Section>
+        <Sub>Admin kapcsolati adatok</Sub>
+        <Lead>
+          Itt tudod frissiteni az admin fiok e-mail cimet es telefonszamat. A
+          menteshez add meg a jelenlegi admin jelszot.
+        </Lead>
+        <form onSubmit={saveAdminContact}>
+          <Field>
+            Admin e-mail cím
+            <Input
+              type="email"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              autoComplete="email"
+              disabled={isSavingAdmin}
+              required
+            />
+          </Field>
+          <Field>
+            Telefonszám
+            <Input
+              type="tel"
+              value={adminPhone}
+              onChange={(e) => setAdminPhone(e.target.value)}
+              autoComplete="tel"
+              disabled={isSavingAdmin}
+              placeholder="+36 30 123 4567"
+            />
+          </Field>
+          <Field>
+            Jelenlegi admin jelszó
+            <Input
+              type="password"
+              value={adminCurrentPassword}
+              onChange={(e) => setAdminCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              disabled={isSavingAdmin}
+              required
+            />
+          </Field>
+          {adminMsg ? <Msg ok={adminMsg.ok}>{adminMsg.text}</Msg> : null}
+          <Btn type="submit" disabled={isSavingAdmin}>
+            {isSavingAdmin ? "Mentés..." : "Kapcsolati adatok mentése"}
+          </Btn>
+        </form>
+      </Section>
+
+      <Section>
         <Sub>Admin jelszó módosítása</Sub>
+        <Lead>
+          Add meg a jelenlegi admin jelszot, majd az uj jelszot ketszer. Az uj
+          admin jelszo legalabb 4 karakter legyen.
+        </Lead>
         <form onSubmit={savePassword}>
           <Field>
             Jelenlegi jelszó
@@ -185,6 +309,8 @@ export function AdminSettings() {
               value={curPass}
               onChange={(e) => setCurPass(e.target.value)}
               autoComplete="current-password"
+              disabled={isSavingPassword}
+              required
             />
           </Field>
           <Field>
@@ -194,6 +320,9 @@ export function AdminSettings() {
               value={newPass}
               onChange={(e) => setNewPass(e.target.value)}
               autoComplete="new-password"
+              disabled={isSavingPassword}
+              minLength={4}
+              required
             />
           </Field>
           <Field>
@@ -203,13 +332,36 @@ export function AdminSettings() {
               value={newPass2}
               onChange={(e) => setNewPass2(e.target.value)}
               autoComplete="new-password"
+              disabled={isSavingPassword}
+              minLength={4}
+              required
             />
           </Field>
-          {pwMsg ? (
-            <Msg ok={pwMsg.ok}>{pwMsg.text}</Msg>
-          ) : null}
-          <Btn type="submit">Jelszó mentése</Btn>
+          {pwMsg ? <Msg ok={pwMsg.ok}>{pwMsg.text}</Msg> : null}
+          <Btn type="submit" disabled={isSavingPassword}>
+            {isSavingPassword ? "Mentés..." : "Jelszó mentése"}
+          </Btn>
         </form>
+      </Section>
+
+      <Section>
+        <Sub>Munkamenetek</Sub>
+        <Lead>
+          Ha szukseges, az admin fiokot egy kattintassal kijelentkeztetheted
+          az osszes eszkozrol.
+        </Lead>
+        {sessionMsg ? <Msg ok={sessionMsg.ok}>{sessionMsg.text}</Msg> : null}
+        <Btn
+          type="button"
+          onClick={() => {
+            void handleLogoutAllSessions();
+          }}
+          disabled={isLoggingOutEverywhere}
+        >
+          {isLoggingOutEverywhere
+            ? "Kijelentkeztetes..."
+            : "Kijelentkeztetes minden eszkozrol"}
+        </Btn>
       </Section>
     </div>
   );

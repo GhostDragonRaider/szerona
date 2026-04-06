@@ -1,5 +1,5 @@
 /**
- * Bolt oldal: kategória szűrő (URL query), kereső integráció, termékrács.
+ * Bolt oldal: kategória, ár és kereső alapú szűrés a termékrácshoz.
  */
 import styled from "@emotion/styled";
 import { useMemo } from "react";
@@ -35,7 +35,7 @@ const Filters = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: ${({ theme }) => theme.space.sm};
-  margin-bottom: ${({ theme }) => theme.space.xl};
+  margin-bottom: ${({ theme }) => theme.space.lg};
 `;
 
 const Chip = styled.button<{ active?: boolean }>`
@@ -53,6 +53,33 @@ const Chip = styled.button<{ active?: boolean }>`
   &:hover {
     border-color: ${({ theme }) => theme.colors.text};
   }
+`;
+
+const PriceFilters = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.space.sm};
+  margin-bottom: ${({ theme }) => theme.space.xl};
+  @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
+    grid-template-columns: repeat(2, minmax(180px, 240px));
+  }
+`;
+
+const PriceField = styled.label`
+  display: block;
+  font-size: 0.85rem;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const PriceInput = styled.input`
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: ${({ theme }) => theme.space.sm} ${({ theme }) => theme.space.md};
+  border-radius: ${({ theme }) => theme.radii.md};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
+  font-family: ${({ theme }) => theme.fonts.body};
 `;
 
 const Grid = styled.div`
@@ -78,6 +105,12 @@ const allCategories: (ProductCategory | "all")[] = [
   "cipo",
 ];
 
+function parsePrice(value: string | null) {
+  if (!value) return undefined;
+  const number = Number.parseInt(value, 10);
+  return Number.isFinite(number) ? number : undefined;
+}
+
 export function ShopPage() {
   const [params, setParams] = useSearchParams();
   const categoryParam = params.get("category") as ProductCategory | "all" | null;
@@ -86,17 +119,46 @@ export function ShopPage() {
       ? categoryParam
       : "all";
 
+  const minPriceValue = params.get("minPrice") ?? "";
+  const maxPriceValue = params.get("maxPrice") ?? "";
+  const minPrice = parsePrice(minPriceValue);
+  const maxPrice = parsePrice(maxPriceValue);
+
   const { query } = useSearch();
-  const { filterProducts } = useProducts();
+  const { filterProducts, isLoading, error } = useProducts();
 
   const list = useMemo(
-    () => filterProducts(query, category),
-    [filterProducts, query, category],
+    () => filterProducts(query, category, minPrice, maxPrice),
+    [filterProducts, query, category, minPrice, maxPrice],
   );
 
+  function updateParams(next: {
+    category?: ProductCategory | "all";
+    minPrice?: string;
+    maxPrice?: string;
+  }) {
+    const nextParams = new URLSearchParams(params);
+
+    if (next.category !== undefined) {
+      if (next.category === "all") nextParams.delete("category");
+      else nextParams.set("category", next.category);
+    }
+
+    if (next.minPrice !== undefined) {
+      if (next.minPrice.trim()) nextParams.set("minPrice", next.minPrice.trim());
+      else nextParams.delete("minPrice");
+    }
+
+    if (next.maxPrice !== undefined) {
+      if (next.maxPrice.trim()) nextParams.set("maxPrice", next.maxPrice.trim());
+      else nextParams.delete("maxPrice");
+    }
+
+    setParams(nextParams);
+  }
+
   function setCategory(next: ProductCategory | "all") {
-    if (next === "all") setParams({});
-    else setParams({ category: next });
+    updateParams({ category: next });
   }
 
   return (
@@ -114,8 +176,38 @@ export function ShopPage() {
           </Chip>
         ))}
       </Filters>
+      <PriceFilters>
+        <PriceField>
+          Minimum ár
+          <PriceInput
+            type="number"
+            inputMode="numeric"
+            min="0"
+            step="1"
+            placeholder="pl. 10000"
+            value={minPriceValue}
+            onChange={(e) => updateParams({ minPrice: e.target.value })}
+          />
+        </PriceField>
+        <PriceField>
+          Maximum ár
+          <PriceInput
+            type="number"
+            inputMode="numeric"
+            min="0"
+            step="1"
+            placeholder="pl. 30000"
+            value={maxPriceValue}
+            onChange={(e) => updateParams({ maxPrice: e.target.value })}
+          />
+        </PriceField>
+      </PriceFilters>
+      {error ? <Empty>{error}</Empty> : null}
+      {isLoading ? <Empty>Termekek betoltese...</Empty> : null}
       {list.length === 0 ? (
-        <Empty>Nincs találat. Próbálj más keresőszót vagy kategóriát.</Empty>
+        <Empty>
+          Nincs találat. Próbálj más keresőszót, kategóriát vagy ártartományt.
+        </Empty>
       ) : (
         <Grid>
           {list.map((p) => (

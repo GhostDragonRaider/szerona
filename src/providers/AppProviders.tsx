@@ -1,11 +1,12 @@
 /**
- * Alkalmazás szintű provider-ek: beállítások → színséma (világos/sötét) → dinamikus Emotion téma → auth → …
+ * Alkalmazás szintű provider-ek: cookie hozzájárulás → beállítások → színséma → dinamikus Emotion téma → auth → …
  */
 import type { ReactNode } from "react";
 import { ThemeProvider, useTheme } from "@emotion/react";
 import { useEffect, useMemo } from "react";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
+import { CookieConsentProvider } from "../context/CookieConsentContext";
 import { ProductsProvider } from "../context/ProductsContext";
 import { SearchProvider } from "../context/SearchContext";
 import { SettingsProvider, useSettings } from "../context/SettingsContext";
@@ -52,11 +53,13 @@ function DynamicTheme({ children }: { children: ReactNode }) {
 
 function SettingsThemeAndMode({ children }: { children: ReactNode }) {
   return (
-    <SettingsProvider>
-      <ThemeModeProvider>
-        <DynamicTheme>{children}</DynamicTheme>
-      </ThemeModeProvider>
-    </SettingsProvider>
+    <CookieConsentProvider>
+      <SettingsProvider>
+        <ThemeModeProvider>
+          <DynamicTheme>{children}</DynamicTheme>
+        </ThemeModeProvider>
+      </SettingsProvider>
+    </CookieConsentProvider>
   );
 }
 

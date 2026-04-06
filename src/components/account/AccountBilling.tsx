@@ -17,6 +17,7 @@ export function AccountBilling() {
   const { user, updateBilling } = useAuth();
   const [form, setForm] = useState<BillingAddress>(emptyBilling);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (user?.billing) setForm({ ...emptyBilling(), ...user.billing });
@@ -28,10 +29,20 @@ export function AccountBilling() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    updateBilling(form);
-    setMsg({ ok: true, text: "Számlázási cím mentve." });
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setMsg(null);
+    const result = await updateBilling(form);
+    setIsSubmitting(false);
+    setMsg({
+      ok: result.ok,
+      text:
+        result.message ??
+        (result.ok ? "Szamlazasi cim mentve." : "Nem sikerult a mentes."),
+    });
   }
 
   return (
@@ -48,6 +59,7 @@ export function AccountBilling() {
             value={form.fullName}
             onChange={(e) => setField("fullName", e.target.value)}
             autoComplete="name"
+            disabled={isSubmitting}
           />
         </Field>
         <Field>
@@ -56,6 +68,7 @@ export function AccountBilling() {
             value={form.line1}
             onChange={(e) => setField("line1", e.target.value)}
             autoComplete="street-address"
+            disabled={isSubmitting}
           />
         </Field>
         <Field>
@@ -63,6 +76,7 @@ export function AccountBilling() {
           <Input
             value={form.line2}
             onChange={(e) => setField("line2", e.target.value)}
+            disabled={isSubmitting}
           />
         </Field>
         <Field>
@@ -72,6 +86,7 @@ export function AccountBilling() {
             onChange={(e) => setField("zip", e.target.value)}
             autoComplete="postal-code"
             inputMode="numeric"
+            disabled={isSubmitting}
           />
         </Field>
         <Field>
@@ -80,6 +95,7 @@ export function AccountBilling() {
             value={form.city}
             onChange={(e) => setField("city", e.target.value)}
             autoComplete="address-level2"
+            disabled={isSubmitting}
           />
         </Field>
         <Field>
@@ -88,9 +104,12 @@ export function AccountBilling() {
             value={form.country}
             onChange={(e) => setField("country", e.target.value)}
             autoComplete="country-name"
+            disabled={isSubmitting}
           />
         </Field>
-        <Btn type="submit">Mentés</Btn>
+        <Btn type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Mentés..." : "Mentés"}
+        </Btn>
         {msg ? <Msg ok={msg.ok}>{msg.text}</Msg> : null}
       </form>
     </Box>

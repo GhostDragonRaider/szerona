@@ -178,6 +178,8 @@ export function CartDrawer() {
     setQuantity,
     totalPrice,
     clearCart,
+    isLoading,
+    error,
   } = useCart();
 
   return (
@@ -191,7 +193,9 @@ export function CartDrawer() {
           </Close>
         </Head>
         <List>
-          {lines.length === 0 ? (
+          {isLoading ? (
+            <EmptyMsg>A kosár betöltése folyamatban...</EmptyMsg>
+          ) : lines.length === 0 ? (
             <EmptyMsg>A kosár üres.</EmptyMsg>
           ) : (
             lines.map(({ product, quantity }) => (
@@ -225,6 +229,7 @@ export function CartDrawer() {
           )}
         </List>
         <Foot>
+          {error ? <EmptyMsg css={{ margin: 0, marginBottom: "1rem" }}>{error}</EmptyMsg> : null}
           <Total>
             Összesen: {totalPrice.toLocaleString("hu-HU")} Ft
           </Total>
@@ -239,7 +244,12 @@ export function CartDrawer() {
               >
                 Tovább a fizetéshez
               </CheckoutBtn>
-              <ClearBtn type="button" onClick={() => clearCart()}>
+              <ClearBtn
+                type="button"
+                onClick={() => {
+                  void clearCart();
+                }}
+              >
                 Kosár ürítése
               </ClearBtn>
             </>

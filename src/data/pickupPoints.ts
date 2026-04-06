@@ -1,0 +1,177 @@
+import type { ShippingMethodId } from "./types";
+
+export interface PickupPoint {
+  id: string;
+  shippingMethod: Extract<ShippingMethodId, "gls_parcel_locker" | "mpl_post_office">;
+  zip: string;
+  city: string;
+  label: string;
+  address: string;
+  note?: string;
+}
+
+export const PICKUP_POINTS: PickupPoint[] = [
+  {
+    id: "gls-bp-arena",
+    shippingMethod: "gls_parcel_locker",
+    zip: "1087",
+    city: "Budapest",
+    label: "GLS Automata - Arena Mall",
+    address: "Kerepesi ut 9.",
+    note: "A fobejarat kozeleben, parkolohaz szint.",
+  },
+  {
+    id: "gls-bp-vaci",
+    shippingMethod: "gls_parcel_locker",
+    zip: "1138",
+    city: "Budapest",
+    label: "GLS Automata - Vaci Greens",
+    address: "Vaci ut 117-119.",
+    note: "Irodapark lobby melletti automata.",
+  },
+  {
+    id: "gls-debrecen-forum",
+    shippingMethod: "gls_parcel_locker",
+    zip: "4025",
+    city: "Debrecen",
+    label: "GLS Automata - Forum Debrecen",
+    address: "Csapo utca 30.",
+  },
+  {
+    id: "gls-gyor-arkad",
+    shippingMethod: "gls_parcel_locker",
+    zip: "9022",
+    city: "Gyor",
+    label: "GLS Automata - Arkad Gyor",
+    address: "Budai ut 1.",
+  },
+  {
+    id: "gls-szeged-arkad",
+    shippingMethod: "gls_parcel_locker",
+    zip: "6724",
+    city: "Szeged",
+    label: "GLS Automata - Arkad Szeged",
+    address: "Londoni korut 3.",
+  },
+  {
+    id: "gls-pecs-plaza",
+    shippingMethod: "gls_parcel_locker",
+    zip: "7622",
+    city: "Pecs",
+    label: "GLS Automata - Pecs Plaza",
+    address: "Megyeri ut 76.",
+  },
+  {
+    id: "gls-miskolc-szinva",
+    shippingMethod: "gls_parcel_locker",
+    zip: "3525",
+    city: "Miskolc",
+    label: "GLS Automata - Szinvapark",
+    address: "Bajcsy-Zsilinszky ut 2-4.",
+  },
+  {
+    id: "gls-kecskemet-malom",
+    shippingMethod: "gls_parcel_locker",
+    zip: "6000",
+    city: "Kecskemet",
+    label: "GLS Automata - Malom Kozpont",
+    address: "Korhaz utca 6.",
+  },
+  {
+    id: "gls-nyiregyhaza-korzo",
+    shippingMethod: "gls_parcel_locker",
+    zip: "4400",
+    city: "Nyiregyhaza",
+    label: "GLS Automata - Korzo",
+    address: "Nagy Imre ter 1.",
+  },
+  {
+    id: "gls-szekesfehervar-alba",
+    shippingMethod: "gls_parcel_locker",
+    zip: "8000",
+    city: "Szekesfehervar",
+    label: "GLS Automata - Alba Plaza",
+    address: "Palotai ut 1.",
+  },
+  {
+    id: "mpl-bp-belvaros",
+    shippingMethod: "mpl_post_office",
+    zip: "1051",
+    city: "Budapest",
+    label: "MPL Postan marado - Budapest 5 posta",
+    address: "Bajcsy-Zsilinszky ut 16.",
+    note: "Belvarosi fo posta.",
+  },
+  {
+    id: "mpl-bp-allee",
+    shippingMethod: "mpl_post_office",
+    zip: "1117",
+    city: "Budapest",
+    label: "MPL Postan marado - Allee posta",
+    address: "Oktober huszonharmadika utca 8-10.",
+  },
+  {
+    id: "mpl-debrecen-1",
+    shippingMethod: "mpl_post_office",
+    zip: "4026",
+    city: "Debrecen",
+    label: "MPL Postan marado - Debrecen 1 posta",
+    address: "Kossuth utca 1.",
+  },
+  {
+    id: "mpl-gyor-1",
+    shippingMethod: "mpl_post_office",
+    zip: "9021",
+    city: "Gyor",
+    label: "MPL Postan marado - Gyor 1 posta",
+    address: "Bajcsy-Zsilinszky ut 36.",
+  },
+  {
+    id: "mpl-szeged-1",
+    shippingMethod: "mpl_post_office",
+    zip: "6720",
+    city: "Szeged",
+    label: "MPL Postan marado - Szeged 1 posta",
+    address: "Szechenyi ter 1.",
+  },
+  {
+    id: "mpl-pecs-1",
+    shippingMethod: "mpl_post_office",
+    zip: "7621",
+    city: "Pecs",
+    label: "MPL Postan marado - Pecs 1 posta",
+    address: "Irgalmasok utca 26.",
+  },
+  {
+    id: "mpl-miskolc-1",
+    shippingMethod: "mpl_post_office",
+    zip: "3525",
+    city: "Miskolc",
+    label: "MPL Postan marado - Miskolc 1 posta",
+    address: "Ujgyori fo ter 7.",
+  },
+  {
+    id: "mpl-kecskemet-1",
+    shippingMethod: "mpl_post_office",
+    zip: "6001",
+    city: "Kecskemet",
+    label: "MPL Postan marado - Kecskemet 1 posta",
+    address: "Nagykorosi utca 9.",
+  },
+  {
+    id: "mpl-nyiregyhaza-1",
+    shippingMethod: "mpl_post_office",
+    zip: "4400",
+    city: "Nyiregyhaza",
+    label: "MPL Postan marado - Nyiregyhaza 1 posta",
+    address: "Szarvas utca 2-4.",
+  },
+  {
+    id: "mpl-szekesfehervar-1",
+    shippingMethod: "mpl_post_office",
+    zip: "8000",
+    city: "Szekesfehervar",
+    label: "MPL Postan marado - Szekesfehervar 1 posta",
+    address: "Palotai ut 6.",
+  },
+];

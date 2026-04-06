@@ -289,14 +289,28 @@ const categories: (ProductCategory | "all")[] = [
   "cipo",
 ];
 
+const LOW_STOCK_THRESHOLD = 5;
+
 export function AdminProducts() {
-  const { products, removeProduct, updateProduct, addProduct } = useProducts();
+  const {
+    products,
+    isLoading,
+    error,
+    removeProduct,
+    updateProduct,
+    addProduct,
+  } = useProducts();
   const [catFilter, setCatFilter] = useState<ProductCategory | "all">("all");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Product | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formName, setFormName] = useState("");
   const [formPrice, setFormPrice] = useState("");
+  const [formStock, setFormStock] = useState("");
   const [formCat, setFormCat] = useState<ProductCategory>("polo");
   const [formImage, setFormImage] = useState("");
   const [formDesc, setFormDesc] = useState("");
@@ -314,10 +328,21 @@ export function AdminProducts() {
     });
   }, [products, catFilter, search]);
 
+  const lowStockCount = useMemo(
+    () =>
+      products.filter(
+        (product) =>
+          product.active !== false &&
+          (product.availableQuantity ?? product.stockQuantity) <= LOW_STOCK_THRESHOLD,
+      ).length,
+    [products],
+  );
+
   function startEdit(p: Product) {
     setEditing(p);
     setFormName(p.name);
     setFormPrice(String(p.price));
+    setFormStock(String(p.stockQuantity));
     setFormCat(p.category);
     setFormImage(p.image);
     setFormDesc(p.description);
@@ -327,31 +352,54 @@ export function AdminProducts() {
     setEditing(null);
     setFormName("");
     setFormPrice("");
+    setFormStock("10");
     setFormCat("polo");
     setFormImage("/pictures/serona-01-tshirt-black.png");
     setFormDesc("");
   }
 
-  function handleSave(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
+
     const price = parseInt(formPrice, 10);
+    const stockQuantity = parseInt(formStock, 10);
     if (Number.isNaN(price) || price < 0) return;
+    if (Number.isNaN(stockQuantity) || stockQuantity < 0) return;
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    const payload = {
+      name: formName,
+      price,
+      stockQuantity,
+      category: formCat,
+      image: formImage,
+      description: formDesc,
+      isNew: editing?.isNew ?? false,
+    };
+
+    const result = editing
+      ? await updateProduct(editing.id, payload)
+      : await addProduct(payload);
+
+    setIsSubmitting(false);
+    setMessage({
+      ok: result.ok,
+      text:
+        result.message ??
+        (result.ok
+          ? editing
+            ? "Termék frissítve."
+            : "Termék hozzáadva."
+          : "Nem sikerült a mentés."),
+    });
+
+    if (!result.ok) return;
+
     if (editing) {
-      updateProduct(editing.id, {
-        name: formName,
-        price,
-        category: formCat,
-        image: formImage,
-        description: formDesc,
-      });
-    } else {
-      addProduct({
-        name: formName,
-        price,
-        category: formCat,
-        image: formImage,
-        description: formDesc,
-      });
+      setEditing(null);
     }
     clearForm();
   }
@@ -364,6 +412,11 @@ export function AdminProducts() {
           Szűrj kategória és szöveg szerint; szerkesztéshez kattints a Sor szerkesztése
           gombra.
         </Hint>
+        {lowStockCount > 0 ? (
+          <Hint>
+            Figyelem: {lowStockCount} termék készlete {LOW_STOCK_THRESHOLD} db vagy az alatt van.
+          </Hint>
+        ) : null}
       </Head>
       <Filters>
         <Field>
@@ -390,6 +443,9 @@ export function AdminProducts() {
           />
         </Field>
       </Filters>
+      {error ? <Hint>{error}</Hint> : null}
+      {message ? <Hint>{message.text}</Hint> : null}
+      {isLoading ? <Hint>Termékek betöltése...</Hint> : null}
       <CardList aria-label="Termékek kártyanézet">
         {filtered.map((p) => (
           <ProductCard key={p.id}>
@@ -397,6 +453,12 @@ export function AdminProducts() {
             <CardBody>
               <CardName>{p.name}</CardName>
               <CardMeta>{CATEGORY_LABELS[p.category]}</CardMeta>
+              <CardMeta>
+                Készlet: {p.availableQuantity ?? p.stockQuantity} / {p.stockQuantity}
+              </CardMeta>
+              {(p.availableQuantity ?? p.stockQuantity) <= LOW_STOCK_THRESHOLD ? (
+                <CardMeta>Alacsony készlet</CardMeta>
+              ) : null}
               <CardPrice>{p.price.toLocaleString("hu-HU")} Ft</CardPrice>
             </CardBody>
             <CardActions>
@@ -405,10 +467,19 @@ export function AdminProducts() {
               </Btn>
               <BtnDanger
                 type="button"
-                onClick={() => {
-                  if (confirm("Biztosan törlöd ezt a terméket?")) {
-                    removeProduct(p.id);
-                    if (editing?.id === p.id) clearForm();
+                onClick={async () => {
+                  if (!confirm("Biztosan törlöd ezt a terméket?")) return;
+                  const result = await removeProduct(p.id);
+                  setMessage({
+                    ok: result.ok,
+                    text:
+                      result.message ??
+                      (result.ok
+                        ? "Termék törölve."
+                        : "Nem sikerült törölni a terméket."),
+                  });
+                  if (result.ok && editing?.id === p.id) {
+                    clearForm();
                   }
                 }}
               >
@@ -426,6 +497,7 @@ export function AdminProducts() {
             <Th>Név</Th>
             <Th>Csoport</Th>
             <Th>Ár (Ft)</Th>
+            <Th>Készlet</Th>
             <Th>Művelet</Th>
           </tr>
         </thead>
@@ -439,16 +511,31 @@ export function AdminProducts() {
               <Td>{CATEGORY_LABELS[p.category]}</Td>
               <Td>{p.price.toLocaleString("hu-HU")}</Td>
               <Td>
+                {p.availableQuantity ?? p.stockQuantity} / {p.stockQuantity}
+                {(p.availableQuantity ?? p.stockQuantity) <= LOW_STOCK_THRESHOLD
+                  ? " - alacsony"
+                  : ""}
+              </Td>
+              <Td>
                 <TableActions>
                   <Btn type="button" onClick={() => startEdit(p)}>
                     Szerkesztés
                   </Btn>
                   <BtnDanger
                     type="button"
-                    onClick={() => {
-                      if (confirm("Biztosan törlöd ezt a terméket?")) {
-                        removeProduct(p.id);
-                        if (editing?.id === p.id) clearForm();
+                    onClick={async () => {
+                      if (!confirm("Biztosan törlöd ezt a terméket?")) return;
+                      const result = await removeProduct(p.id);
+                      setMessage({
+                        ok: result.ok,
+                        text:
+                          result.message ??
+                          (result.ok
+                            ? "Termék törölve."
+                            : "Nem sikerült törölni a terméket."),
+                      });
+                      if (result.ok && editing?.id === p.id) {
+                        clearForm();
                       }
                     }}
                   >
@@ -481,6 +568,18 @@ export function AdminProducts() {
                 min={0}
                 value={formPrice}
                 onChange={(e) => setFormPrice(e.target.value)}
+                disabled={isSubmitting}
+                required
+              />
+            </Field>
+            <Field>
+              Készlet (db)
+              <Input
+                type="number"
+                min={0}
+                value={formStock}
+                onChange={(e) => setFormStock(e.target.value)}
+                disabled={isSubmitting}
                 required
               />
             </Field>
@@ -491,6 +590,7 @@ export function AdminProducts() {
                 onChange={(e) =>
                   setFormCat(e.target.value as ProductCategory)
                 }
+                disabled={isSubmitting}
               >
                 {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map(
                   (c) => (
@@ -506,6 +606,7 @@ export function AdminProducts() {
               <Input
                 value={formImage}
                 onChange={(e) => setFormImage(e.target.value)}
+                disabled={isSubmitting}
                 required
               />
             </Field>
@@ -515,16 +616,21 @@ export function AdminProducts() {
                 <TextArea
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
+                  disabled={isSubmitting}
                   required
                 />
               </Field>
             </FullSpan>
             <FormActions>
-              <SaveBtn type="submit">
-                {editing ? "Mentés" : "Termék hozzáadása"}
+              <SaveBtn type="submit" disabled={isSubmitting}>
+                {isSubmitting
+                  ? "Mentés..."
+                  : editing
+                    ? "Mentés"
+                    : "Termék hozzáadása"}
               </SaveBtn>
               {editing ? (
-                <Btn type="button" onClick={clearForm}>
+                <Btn type="button" onClick={clearForm} disabled={isSubmitting}>
                   Mégse szerkesztés
                 </Btn>
               ) : null}

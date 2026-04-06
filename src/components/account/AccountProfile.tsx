@@ -1,11 +1,22 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { Box, Btn, Field, Input, Lead, Msg, Title } from "./accountShared";
+import {
+  Box,
+  Btn,
+  BtnGhost,
+  Field,
+  Input,
+  Lead,
+  Msg,
+  Title,
+} from "./accountShared";
 
 export function AccountProfile() {
-  const { user, updateDisplayName } = useAuth();
+  const { user, logoutAllSessions, updateDisplayName } = useAuth();
   const [name, setName] = useState(user?.displayName ?? "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoggingOutEverywhere, setIsLoggingOutEverywhere] = useState(false);
 
   useEffect(() => {
     if (user) setName(user.displayName);
@@ -14,10 +25,34 @@ export function AccountProfile() {
 
   if (!user) return null;
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    updateDisplayName(name);
-    setMsg({ ok: true, text: "Profil mentve." });
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setMsg(null);
+    const result = await updateDisplayName(name);
+    setIsSubmitting(false);
+    setMsg({
+      ok: result.ok,
+      text: result.message ?? (result.ok ? "Profil mentve." : "Hiba tortent."),
+    });
+  }
+
+  async function handleLogoutEverywhere() {
+    if (isLoggingOutEverywhere) return;
+    setIsLoggingOutEverywhere(true);
+    setMsg(null);
+    const result = await logoutAllSessions();
+    setIsLoggingOutEverywhere(false);
+    setMsg({
+      ok: result.ok,
+      text:
+        result.message ??
+        (result.ok
+          ? "Minden eszkozrol kijelentkeztettel."
+          : "Nem sikerult a kijelentkeztetes minden eszkozrol."),
+    });
   }
 
   return (
@@ -38,9 +73,24 @@ export function AccountProfile() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoComplete="name"
+            disabled={isSubmitting}
           />
         </Field>
-        <Btn type="submit">Mentés</Btn>
+        <Btn type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Mentes..." : "Mentés"}
+        </Btn>
+        <BtnGhost
+          type="button"
+          onClick={() => {
+            void handleLogoutEverywhere();
+          }}
+          disabled={isLoggingOutEverywhere}
+          css={{ marginTop: "0.75rem" }}
+        >
+          {isLoggingOutEverywhere
+            ? "Kijelentkeztetes..."
+            : "Kijelentkeztetes minden eszkozrol"}
+        </BtnGhost>
         {msg ? <Msg ok={msg.ok}>{msg.text}</Msg> : null}
       </form>
     </Box>

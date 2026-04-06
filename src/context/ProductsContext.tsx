@@ -1,6 +1,5 @@
 /**
- * Terméklista globális állapota: betöltés localStorage-ból, admin módosítások mentése.
- * A teljes webshop és az admin termékkezelő ugyanezt a forrást használja.
+ * Termeklista globalis allapota: backendrol tolt, admin modositasok API-n at.
  */
 import {
   createContext,
@@ -11,79 +10,183 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { apiFetch, type ApiError } from "../lib/api";
 import { INITIAL_PRODUCTS } from "../data/products";
 import type { Product, ProductCategory } from "../data/types";
 
-const STORAGE_KEY = "szerona_products_v1";
-
-function loadFromStorage(): Product[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Product[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    /* üres tároló vagy hibás JSON – alaplista */
-  }
-  return INITIAL_PRODUCTS;
-}
-
-function saveToStorage(products: Product[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+interface ProductsActionResult {
+  ok: boolean;
+  message?: string;
+  product?: Product;
 }
 
 interface ProductsContextValue {
   products: Product[];
-  setProducts: (next: Product[]) => void;
-  addProduct: (p: Omit<Product, "id"> & { id?: string }) => void;
-  updateProduct: (id: string, patch: Partial<Product>) => void;
-  removeProduct: (id: string) => void;
-  /** Szűrés kategória és szöveges kereső szerint (név + leírás). */
-  filterProducts: (query: string, category: ProductCategory | "all") => Product[];
+  isLoading: boolean;
+  error: string | null;
+  refreshProducts: (includeInactive?: boolean) => Promise<void>;
+  addProduct: (
+    p: Omit<Product, "id"> & { id?: string },
+  ) => Promise<ProductsActionResult>;
+  updateProduct: (
+    id: string,
+    patch: Partial<Product>,
+  ) => Promise<ProductsActionResult>;
+  removeProduct: (id: string) => Promise<ProductsActionResult>;
+  filterProducts: (
+    query: string,
+    category: ProductCategory | "all",
+    minPrice?: number,
+    maxPrice?: number,
+  ) => Product[];
 }
 
 const ProductsContext = createContext<ProductsContextValue | null>(null);
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  const apiError = error as ApiError | null;
+  if (apiError?.message) {
+    return apiError.message;
+  }
+
+  return fallback;
+}
+
+interface ProductsResponse {
+  ok: boolean;
+  products: Product[];
+}
+
+interface ProductResponse {
+  ok: boolean;
+  message?: string;
+  product: Product;
+}
+
 export function ProductsProvider({ children }: { children: ReactNode }) {
-  const [products, setProductsState] = useState<Product[]>(() =>
-    typeof window === "undefined" ? INITIAL_PRODUCTS : loadFromStorage(),
-  );
+  const [products, setProductsState] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    saveToStorage(products);
-  }, [products]);
-
-  const setProducts = useCallback((next: Product[]) => {
-    setProductsState(next);
+  const refreshProducts = useCallback(async (includeInactive = false) => {
+    try {
+      setError(null);
+      const response = await apiFetch<ProductsResponse>(
+        `/api/products${includeInactive ? "?includeInactive=true" : ""}`,
+      );
+      setProductsState(response.products);
+    } catch (err) {
+      setError(getErrorMessage(err, "Nem sikerult a termekeket betolteni."));
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void refreshProducts();
+  }, [refreshProducts]);
+
   const addProduct = useCallback(
-    (p: Omit<Product, "id"> & { id?: string }) => {
-      const id =
-        p.id ??
-        `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      setProductsState((prev) => [...prev, { ...p, id }]);
+    async (
+      p: Omit<Product, "id"> & { id?: string },
+    ): Promise<ProductsActionResult> => {
+      try {
+        const response = await apiFetch<ProductResponse>("/api/products", {
+          method: "POST",
+          auth: true,
+          json: p,
+        });
+
+        setProductsState((prev) => [response.product, ...prev]);
+        return {
+          ok: true,
+          message: response.message ?? "Termek letrehozva.",
+          product: response.product,
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          message: getErrorMessage(err, "Nem sikerult a termeket menteni."),
+        };
+      }
     },
     [],
   );
 
-  const updateProduct = useCallback((id: string, patch: Partial<Product>) => {
-    setProductsState((prev) =>
-      prev.map((x) => (x.id === id ? { ...x, ...patch } : x)),
-    );
-  }, []);
+  const updateProductAction = useCallback(
+    async (id: string, patch: Partial<Product>): Promise<ProductsActionResult> => {
+      const current = products.find((product) => product.id === id);
+      if (!current) {
+        return { ok: false, message: "A termek nem talalhato." };
+      }
 
-  const removeProduct = useCallback((id: string) => {
-    setProductsState((prev) => prev.filter((x) => x.id !== id));
+      try {
+        const response = await apiFetch<ProductResponse>(`/api/products/${id}`, {
+          method: "PATCH",
+          auth: true,
+          json: { ...current, ...patch },
+        });
+
+        setProductsState((prev) =>
+          prev.map((product) => (product.id === id ? response.product : product)),
+        );
+
+        return {
+          ok: true,
+          message: response.message ?? "Termek frissitve.",
+          product: response.product,
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          message: getErrorMessage(err, "Nem sikerult a termek frissitese."),
+        };
+      }
+    },
+    [products],
+  );
+
+  const removeProduct = useCallback(async (id: string): Promise<ProductsActionResult> => {
+    try {
+      const response = await apiFetch<{ ok: boolean; message?: string }>(
+        `/api/products/${id}`,
+        {
+          method: "DELETE",
+          auth: true,
+        },
+      );
+
+      setProductsState((prev) => prev.filter((product) => product.id !== id));
+      return {
+        ok: true,
+        message: response.message ?? "Termek torolve.",
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        message: getErrorMessage(err, "Nem sikerult a termek torlese."),
+      };
+    }
   }, []);
 
   const filterProducts = useCallback(
-    (query: string, category: ProductCategory | "all") => {
+    (
+      query: string,
+      category: ProductCategory | "all",
+      minPrice?: number,
+      maxPrice?: number,
+    ) => {
       const q = query.trim().toLowerCase();
       return products.filter((p) => {
+        if (p.active === false) return false;
         const catOk = category === "all" || p.category === category;
         if (!catOk) return false;
+        if (typeof minPrice === "number" && p.price < minPrice) return false;
+        if (typeof maxPrice === "number" && p.price > maxPrice) return false;
         if (!q) return true;
         return (
           p.name.toLowerCase().includes(q) ||
@@ -97,17 +200,21 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       products,
-      setProducts,
+      isLoading,
+      error,
+      refreshProducts,
       addProduct,
-      updateProduct,
+      updateProduct: updateProductAction,
       removeProduct,
       filterProducts,
     }),
     [
       products,
-      setProducts,
+      isLoading,
+      error,
+      refreshProducts,
       addProduct,
-      updateProduct,
+      updateProductAction,
       removeProduct,
       filterProducts,
     ],

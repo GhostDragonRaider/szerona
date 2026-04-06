@@ -4,7 +4,10 @@
   "description": "Serona webshop – React + TypeScript + Emotion frontend",
   "type": "module",
   "scripts": {
-    "dev": "node node_modules/vite/bin/vite.js",
+    "dev": "node node_modules/concurrently/dist/bin/concurrently.js -k -n frontend,backend -c blue,green \"npm:dev:frontend\" \"npm:dev:backend:watch\"",
+    "dev:frontend": "node node_modules/vite/bin/vite.js",
+    "dev:backend": "node backend/index.js",
+    "dev:backend:watch": "node --watch backend/index.js",
     "build": "node node_modules/typescript/lib/tsc.js -b && node node_modules/vite/bin/vite.js build",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "typecheck": "node node_modules/typescript/lib/tsc.js -b --noEmit"
@@ -23,6 +26,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "pg": "^8.20.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-helmet-async": "^3.0.0",
@@ -33,6 +37,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.1",
     "typescript": "~5.7.2",
     "vite": "^6.2.0"
   }

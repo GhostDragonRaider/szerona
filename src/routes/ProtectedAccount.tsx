@@ -6,7 +6,10 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export function ProtectedAccount({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  if (isLoading) {
+    return null;
+  }
   if (!user) {
     return <Navigate to="/" replace />;
   }

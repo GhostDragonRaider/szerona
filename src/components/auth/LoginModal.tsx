@@ -1,9 +1,9 @@
 /**
- * Belépés modális ablak: felhasználónév + jelszó; siker esetén admin → /admin navigáció.
+ * Belepes modal: auth login + elfelejtett jelszo keres.
  */
 import styled from "@emotion/styled";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -28,7 +28,7 @@ const Backdrop = styled.div<{ open: boolean }>`
 
 const Dialog = styled.div`
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   margin: auto 0;
   padding: ${({ theme }) => theme.space.lg};
   box-sizing: border-box;
@@ -48,7 +48,6 @@ const Title = styled.h2`
   font-size: 1.75rem;
 `;
 
-/** Demo belépési adatok – lekerekített „buborék” tippblokk */
 const TipBubble = styled.div`
   margin: 0 0 ${({ theme }) => theme.space.lg};
   padding: ${({ theme }) => theme.space.md};
@@ -115,6 +114,10 @@ const Err = styled.p`
   margin: 0 0 ${({ theme }) => theme.space.md};
 `;
 
+const Ok = styled(Err)`
+  color: ${({ theme }) => theme.colors.success};
+`;
+
 const Row = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.space.sm};
@@ -142,32 +145,111 @@ const BtnGhost = styled(Btn)`
   color: ${({ theme }) => theme.colors.text};
 `;
 
+const TextButton = styled.button`
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: ${({ theme }) => theme.colors.accent};
+  cursor: pointer;
+  font-weight: 600;
+`;
+
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
 }
 
 export function LoginModal({ open, onClose }: LoginModalProps) {
-  const { login } = useAuth();
+  const { login, requestPasswordReset, requestEmailVerification } = useAuth();
   const navigate = useNavigate();
+  const [mode, setMode] = useState<"login" | "forgot">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [devResetUrl, setDevResetUrl] = useState<string | null>(null);
+  const [canResendVerification, setCanResendVerification] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  useEffect(() => {
+    if (!open) {
+      setMode("login");
+      setError(null);
+      setSuccess(null);
+      setDevResetUrl(null);
+      setCanResendVerification(false);
+    }
+  }, [open]);
+
+  async function handleLoginSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setError(null);
-    const res = login(username, password);
+    setSuccess(null);
+    setCanResendVerification(false);
+    setIsSubmitting(true);
+    const res = await login(username, password);
+    setIsSubmitting(false);
+
     if (!res.ok) {
-      setError(res.message ?? "Hiba történt.");
+      setError(res.message ?? "Hiba tortent.");
+      setCanResendVerification(
+        Boolean(res.message?.toLowerCase().includes("nincs megerositve")),
+      );
       return;
     }
+    setCanResendVerification(false);
     setUsername("");
     setPassword("");
     onClose();
-    if (username.trim() === "admin") {
+    if (res.user?.role === "admin") {
       navigate("/admin");
     }
+  }
+
+  async function handleResendVerification() {
+    if (isSubmitting || !username.trim()) return;
+
+    setError(null);
+    setSuccess(null);
+    setIsSubmitting(true);
+    const result = await requestEmailVerification(username.trim());
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setError(result.message ?? "Nem sikerult uj megerosito levelet kerni.");
+      return;
+    }
+
+    setSuccess(
+      result.message ??
+        "Ha talaltunk nem megerositett fiokot, uj megerosito levelet kuldtunk.",
+    );
+  }
+
+  async function handleForgotSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    setError(null);
+    setSuccess(null);
+    setDevResetUrl(null);
+    setIsSubmitting(true);
+    const result = await requestPasswordReset(forgotEmail);
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setError(result.message ?? "Nem sikerult elinditani a visszaallitast.");
+      return;
+    }
+
+    setSuccess(
+      result.message ??
+        "Ha talaltunk ilyen fiokot, kuldtunk egy visszaallitasi linket.",
+    );
+    setDevResetUrl(result.devResetUrl ?? null);
   }
 
   if (!open) return null;
@@ -180,46 +262,127 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
         aria-labelledby="login-title"
         aria-modal="true"
       >
-        <Title id="login-title">Belépés</Title>
-        <TipBubble role="note" aria-label="Demo belépési tippek">
-          <TipLabel>Tipp</TipLabel>
-          <TipList>
-            <TipItem>
-              Admin felület: <code>admin</code> / <code>admin</code>
-            </TipItem>
-            <TipItem>
-              Felhasználói fiók: <code>teszt</code> / <code>teszt</code>
-            </TipItem>
-          </TipList>
-        </TipBubble>
-        <form onSubmit={handleSubmit}>
-          <Field>
-            Felhasználónév
-            <Input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              required
-            />
-          </Field>
-          <Field>
-            Jelszó
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </Field>
-          {error ? <Err>{error}</Err> : null}
-          <Row>
-            <BtnGhost type="button" onClick={onClose}>
-              Mégse
-            </BtnGhost>
-            <BtnPrimary type="submit">Belépek</BtnPrimary>
-          </Row>
-        </form>
+        <Title id="login-title">
+          {mode === "login" ? "Belepes" : "Elfelejtett jelszo"}
+        </Title>
+        {mode === "login" ? (
+          <TipBubble role="note" aria-label="Belepesi tippek">
+            <TipLabel>Tipp</TipLabel>
+            <TipList>
+              <TipItem>
+                Admin felulet: <code>admin</code> / <code>aktualis admin jelszo</code>
+              </TipItem>
+              <TipItem>
+                Vasarloi fiok: a sajat regisztralt felhasznaloddal tudsz belepni
+              </TipItem>
+            </TipList>
+          </TipBubble>
+        ) : (
+          <TipBubble role="note" aria-label="Visszaallitas tipp">
+            <TipLabel>Info</TipLabel>
+            Add meg az e-mail cimet, amihez a fiok tartozik. Ha talalunk ilyen
+            fiokot, visszaallitasi linket kuldunk a megadott cimre.
+          </TipBubble>
+        )}
+
+        {mode === "login" ? (
+          <form onSubmit={handleLoginSubmit}>
+            <Field>
+              Felhasznalonev
+              <Input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                disabled={isSubmitting}
+                required
+              />
+            </Field>
+            <Field>
+              Jelszo
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                disabled={isSubmitting}
+                required
+              />
+            </Field>
+            {error ? <Err>{error}</Err> : null}
+            {success ? <Ok>{success}</Ok> : null}
+            {canResendVerification ? (
+              <TextButton
+                type="button"
+                onClick={handleResendVerification}
+                disabled={isSubmitting}
+              >
+                Megerosito level ujrakuldese
+              </TextButton>
+            ) : null}
+            <TextButton
+              type="button"
+              onClick={() => {
+                setMode("forgot");
+                setError(null);
+                setSuccess(null);
+                setCanResendVerification(false);
+              }}
+            >
+              Elfelejtetted a jelszavad?
+            </TextButton>
+            <Row>
+              <BtnGhost type="button" onClick={onClose} disabled={isSubmitting}>
+                Megse
+              </BtnGhost>
+              <BtnPrimary type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Beleptetes..." : "Belepek"}
+              </BtnPrimary>
+            </Row>
+          </form>
+        ) : (
+          <form onSubmit={handleForgotSubmit}>
+            <Field>
+              E-mail cim
+              <Input
+                type="email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                autoComplete="email"
+                disabled={isSubmitting}
+                required
+              />
+            </Field>
+            {error ? <Err>{error}</Err> : null}
+            {success ? <Ok>{success}</Ok> : null}
+            {devResetUrl ? (
+              <Ok>
+                Teszt link:{" "}
+                <a href={devResetUrl} target="_blank" rel="noreferrer">
+                  {devResetUrl}
+                </a>
+              </Ok>
+            ) : null}
+            <TextButton
+              type="button"
+              onClick={() => {
+                setMode("login");
+                setError(null);
+                setSuccess(null);
+                setDevResetUrl(null);
+              }}
+            >
+              Vissza a belepeshez
+            </TextButton>
+            <Row>
+              <BtnGhost type="button" onClick={onClose} disabled={isSubmitting}>
+                Megse
+              </BtnGhost>
+              <BtnPrimary type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Kuldes..." : "Visszaallitasi link kerese"}
+              </BtnPrimary>
+            </Row>
+          </form>
+        )}
       </Dialog>
     </Backdrop>
   );

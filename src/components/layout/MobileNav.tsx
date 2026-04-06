@@ -135,8 +135,11 @@ export function MobileNav({
         <NavList onClick={onClose}>
           <NavLink to="/">Kezdőlap</NavLink>
           <NavLink to="/shop">Bolt</NavLink>
-          {user ? <NavLink to="/account">Fiók</NavLink> : null}
-          {isAdmin ? <NavLink to="/admin">Admin</NavLink> : null}
+          {user && !isAdmin ? (
+            <NavLink to="/account?tab=orders">Rendeléseim</NavLink>
+          ) : null}
+          {user && !isAdmin ? <NavLink to="/account">Fiók</NavLink> : null}
+          {isAdmin ? <NavLink to="/admin">Admin Felület</NavLink> : null}
         </NavList>
         {!user ? (
           <div

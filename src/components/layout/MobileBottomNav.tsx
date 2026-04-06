@@ -134,7 +134,7 @@ interface MobileBottomNavProps {
 }
 
 export function MobileBottomNav({ onOpenLogin }: MobileBottomNavProps) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <Bar aria-label="Mobil navigáció">
@@ -157,17 +157,17 @@ export function MobileBottomNav({ onOpenLogin }: MobileBottomNavProps) {
         <IconSearch />
         Keresés
       </Item>
-      {user ? (
+      {user && !isAdmin ? (
         <Item to="/account">
           <IconProfile />
           Profil
         </Item>
-      ) : (
+      ) : !user ? (
         <ItemButton type="button" onClick={onOpenLogin}>
           <IconProfile />
           Profil
         </ItemButton>
-      )}
+      ) : null}
     </Bar>
   );
 }

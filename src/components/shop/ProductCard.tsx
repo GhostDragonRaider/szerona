@@ -73,6 +73,12 @@ const Price = styled.p`
   color: ${({ theme }) => theme.colors.text};
 `;
 
+const Stock = styled.p`
+  margin: 0;
+  font-size: 0.85rem;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
 const Btn = styled.button`
   margin-top: auto;
   padding: ${({ theme }) => theme.space.sm} ${({ theme }) => theme.space.md};
@@ -87,6 +93,10 @@ const Btn = styled.button`
   letter-spacing: 0.06em;
   cursor: pointer;
   transition: background 0.2s, transform 0.15s;
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
   &:hover {
     background: ${({ theme }) => theme.colors.text};
     color: ${({ theme }) => theme.colors.bg};
@@ -110,6 +120,8 @@ export function ProductCard({
   showCartButton = true,
 }: ProductCardProps) {
   const { addToCart } = useCart();
+  const isSoldOut = (product.availableQuantity ?? product.stockQuantity) < 1;
+
   return (
     <Card>
       <ImgWrap $compact={compact}>
@@ -119,13 +131,19 @@ export function ProductCard({
       <Body $compact={compact}>
         <Name $compact={compact}>{product.name}</Name>
         <Price>{product.price.toLocaleString("hu-HU")} Ft</Price>
+        <Stock>
+          {isSoldOut
+            ? "Elfogyott"
+            : `Keszleten: ${product.availableQuantity ?? product.stockQuantity} db`}
+        </Stock>
         {showCartButton ? (
           <Btn
             type="button"
+            disabled={isSoldOut}
             onClick={() => addToCart(product, 1)}
             aria-label={`${product.name} kosárba`}
           >
-            Kosárba
+            {isSoldOut ? "Elfogyott" : "Kosárba"}
           </Btn>
         ) : null}
       </Body>

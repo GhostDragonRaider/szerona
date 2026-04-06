@@ -2,6 +2,8 @@
  * Lábléc: bevezető szöveg, jogi sor (logó nélkül).
  */
 import styled from "@emotion/styled";
+import { Link } from "react-router-dom";
+import { useCookieConsent } from "../../context/CookieConsentContext";
 
 const Foot = styled.footer`
   margin-top: auto;
@@ -44,7 +46,39 @@ const Copy = styled.p`
   text-align: center;
 `;
 
+const LegalRow = styled.nav`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: ${({ theme }) => theme.space.sm} ${({ theme }) => theme.space.md};
+`;
+
+const LegalLink = styled(Link)`
+  color: ${({ theme }) => theme.colors.textMuted};
+  text-decoration: none;
+  font-size: 0.82rem;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+  }
+`;
+
+const LegalButton = styled.button`
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 0.82rem;
+  font-family: ${({ theme }) => theme.fonts.body};
+  cursor: pointer;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+  }
+`;
+
 export function Footer() {
+  const { openPreferences } = useCookieConsent();
   const year = new Date().getFullYear();
   return (
     <Foot>
@@ -53,6 +87,16 @@ export function Footer() {
           Prémium utcai divat. Minőségi anyagok, merész sziluettek – a Serona a
           mindennapi önkifejezésedhez készült.
         </Tagline>
+        <LegalRow aria-label="Jogi linkek">
+          <LegalLink to="/aszf">Általános Szerződési Feltételek</LegalLink>
+          <LegalLink to="/suti-tajekoztato">Sütitájékoztató</LegalLink>
+          <LegalLink to="/adatkezelesi-tajekoztato">
+            Adatkezelési tájékoztató
+          </LegalLink>
+          <LegalButton type="button" onClick={openPreferences}>
+            Sütibeállítások
+          </LegalButton>
+        </LegalRow>
         <Copy>© {year} Serona. Minden jog fenntartva.</Copy>
       </Inner>
     </Foot>

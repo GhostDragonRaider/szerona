@@ -13,6 +13,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: "/pictures/serona-01-tshirt-black.png",
     description: "Pamut keverék, minimal S logó.",
     isNew: true,
+    stockQuantity: 20,
   },
   {
     id: "p2",
@@ -21,6 +22,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "polo",
     image: "/pictures/serona-02-tshirt-white.png",
     description: "Könnyű viselet, mindennapi stílus.",
+    stockQuantity: 20,
   },
   {
     id: "p3",
@@ -30,6 +32,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: "/pictures/serona-03-tshirt-beige.png",
     description: "Semleges tónus, sokoldalú kombinálhatóság.",
     isNew: true,
+    stockQuantity: 20,
   },
   {
     id: "p4",
@@ -38,6 +41,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "nadrag",
     image: "/pictures/serona-04-sweatpants-black.png",
     description: "Jogger fazon, kényelmes derékrész.",
+    stockQuantity: 16,
   },
   {
     id: "p5",
@@ -46,6 +50,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "nadrag",
     image: "/pictures/serona-05-shorts-white.png",
     description: "Rövidnadrág, laza szabás.",
+    stockQuantity: 16,
   },
   {
     id: "p6",
@@ -54,6 +59,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "nadrag",
     image: "/pictures/serona-06-shorts-beige.png",
     description: "Meleg napokra, puha anyag.",
+    stockQuantity: 16,
   },
   {
     id: "p7",
@@ -63,6 +69,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: "/pictures/serona-07-hoodie-beige.png",
     description: "Kapucnis pulóver, kenguru zsebbel.",
     isNew: true,
+    stockQuantity: 12,
   },
   {
     id: "p8",
@@ -71,6 +78,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "cipo",
     image: "/pictures/serona-08-shoes-white.png",
     description: "Alacsony szárú sneaker, letisztult dizájn.",
+    stockQuantity: 10,
   },
   {
     id: "p9",
@@ -80,5 +88,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: "/pictures/serona-09-shoes-black.png",
     description: "Sötét felsőrész, kontrasztos logó.",
     isNew: true,
+    stockQuantity: 10,
   },
 ];

@@ -3,9 +3,11 @@
  * Reszponzív: mobilon lapfülek egy sorban, md felett oldalsáv.
  */
 import styled from "@emotion/styled";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AccountBilling } from "../components/account/AccountBilling";
 import { AccountEmail } from "../components/account/AccountEmail";
+import { AccountOrders } from "../components/account/AccountOrders";
 import { AccountPassword } from "../components/account/AccountPassword";
 import { AccountPayment } from "../components/account/AccountPayment";
 import { AccountProfile } from "../components/account/AccountProfile";
@@ -107,57 +109,109 @@ const Content = styled.div`
 
 export type AccountTab =
   | "profile"
+  | "orders"
   | "billing"
   | "payment"
   | "email"
   | "password";
 
+const ACCOUNT_TABS: AccountTab[] = [
+  "profile",
+  "orders",
+  "billing",
+  "payment",
+  "email",
+  "password",
+];
+
 export function AccountPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<AccountTab>("profile");
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (
+      requestedTab &&
+      ACCOUNT_TABS.includes(requestedTab as AccountTab) &&
+      requestedTab !== tab
+    ) {
+      setTab(requestedTab as AccountTab);
+      return;
+    }
+
+    if (requestedTab && !ACCOUNT_TABS.includes(requestedTab as AccountTab)) {
+      if (tab !== "profile") {
+        setTab("profile");
+      }
+      return;
+    }
+
+    if (!requestedTab && tab !== "profile") {
+      setTab("profile");
+    }
+  }, [searchParams, tab]);
+
+  function changeTab(nextTab: AccountTab) {
+    setTab(nextTab);
+    if (nextTab === "profile") {
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    setSearchParams({ tab: nextTab }, { replace: true });
+  }
 
   return (
     <Page>
-      <PageTitle>Fiók</PageTitle>
+      <PageTitle>{tab === "orders" ? "Rendeléseim" : "Fiók"}</PageTitle>
       <Body>
         <Side role="navigation" aria-label="Fiók menü">
           <TabBtn
             type="button"
             active={tab === "profile"}
-            onClick={() => setTab("profile")}
+            onClick={() => changeTab("profile")}
           >
             Profil
           </TabBtn>
           <TabBtn
             type="button"
+            active={tab === "orders"}
+            onClick={() => changeTab("orders")}
+          >
+            Rendelesek
+          </TabBtn>
+          <TabBtn
+            type="button"
             active={tab === "billing"}
-            onClick={() => setTab("billing")}
+            onClick={() => changeTab("billing")}
           >
             Számlázás
           </TabBtn>
           <TabBtn
             type="button"
             active={tab === "payment"}
-            onClick={() => setTab("payment")}
+            onClick={() => changeTab("payment")}
           >
             Fizetés
           </TabBtn>
           <TabBtn
             type="button"
             active={tab === "email"}
-            onClick={() => setTab("email")}
+            onClick={() => changeTab("email")}
           >
             E-mail
           </TabBtn>
           <TabBtn
             type="button"
             active={tab === "password"}
-            onClick={() => setTab("password")}
+            onClick={() => changeTab("password")}
           >
             Jelszó
           </TabBtn>
         </Side>
         <Content>
           {tab === "profile" ? <AccountProfile /> : null}
+          {tab === "orders" ? <AccountOrders /> : null}
           {tab === "billing" ? <AccountBilling /> : null}
           {tab === "payment" ? <AccountPayment /> : null}
           {tab === "email" ? <AccountEmail /> : null}

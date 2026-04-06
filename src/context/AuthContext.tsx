@@ -1,6 +1,7 @@
 /**
- * Bejelentkezés, regisztráció, kijelentkezés – mock tároló localStorage-ban.
- * Profil (név, számlázás, kártyák) külön kulcsban, felhasználónév szerint.
+ * Backendes auth: regisztracio, belepes, session-visszatoltes, refresh token,
+ * elfelejtett jelszo es szerveroldali profil/szamlazasi adatok.
+ * A mentett fizetesi modok kulon backendes vegpontokon keresztul kezelhetok.
  */
 import {
   createContext,
@@ -11,180 +12,146 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type {
-  BillingAddress,
-  SavedCard,
-  User,
-  UserRole,
-} from "../data/types";
-import { getStoredAdminPassword } from "../utils/adminPassword";
+import { apiFetch, type ApiError } from "../lib/api";
+import {
+  AUTH_SESSION_EVENT,
+  clearAuthSession,
+  loadAuthSession,
+  saveAuthSession,
+  type SessionUser,
+  type StoredAuthSession,
+} from "../lib/authSession";
+import type { BillingAddress, User, UserRole } from "../data/types";
 
-const USERS_KEY = "szerona_users_v1";
-const SESSION_KEY = "szerona_session_v1";
-const PROFILES_KEY = "szerona_account_profiles_v1";
-
-interface StoredUser {
-  username: string;
-  email: string;
-  /** Demo: jelszó tárolása titkosítás nélkül – csak frontend prototípus! */
-  password: string;
+interface ApiAuthUser extends SessionUser {
   role: UserRole;
 }
 
-interface Session {
-  username: string;
-  role: UserRole;
-  email: string;
+interface ApiAuthResponse {
+  ok: boolean;
+  message?: string;
+  token: string;
+  refreshToken?: string;
+  user: ApiAuthUser;
 }
 
-interface StoredProfile {
-  displayName?: string;
-  billing?: Partial<BillingAddress>;
-  cards?: SavedCard[];
+interface ApiMessageResponse {
+  ok: boolean;
+  message?: string;
 }
 
-const DEFAULT_BILLING: BillingAddress = {
-  fullName: "",
-  line1: "",
-  line2: "",
-  city: "",
-  zip: "",
-  country: "Magyarország",
-};
-
-/** Mindig jelen van a listában (localStorage felülírhatja ugyanazzal a névvel). */
-const DEFAULT_USERS: StoredUser[] = [
-  {
-    username: "teszt",
-    email: "teszt@serona.hu",
-    password: "teszt",
-    role: "user",
-  },
-];
-
-function loadUsers(): StoredUser[] {
-  let parsed: StoredUser[] = [];
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as StoredUser[];
-      if (Array.isArray(p)) parsed = p;
-    }
-  } catch {
-    /* */
-  }
-  const byName = new Map<string, StoredUser>();
-  for (const d of DEFAULT_USERS) {
-    byName.set(d.username, d);
-  }
-  for (const u of parsed) {
-    byName.set(u.username, u);
-  }
-  return Array.from(byName.values());
-}
-
-function saveUsers(users: StoredUser[]) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-function loadSession(): Session | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as Session;
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(s: Session | null) {
-  if (!s) localStorage.removeItem(SESSION_KEY);
-  else localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-}
-
-function loadProfiles(): Record<string, StoredProfile> {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as Record<string, StoredProfile>;
-      if (p && typeof p === "object") return p;
-    }
-  } catch {
-    /* */
-  }
-  return {};
-}
-
-function saveProfiles(profiles: Record<string, StoredProfile>) {
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
-}
-
-function mergeBilling(partial?: Partial<BillingAddress>): BillingAddress {
-  return { ...DEFAULT_BILLING, ...partial };
-}
-
-function getStoredProfile(username: string): StoredProfile {
-  return loadProfiles()[username] ?? {};
-}
-
-function buildUserFromSession(session: Session | null): User | null {
-  if (!session) return null;
-  const prof = getStoredProfile(session.username);
-  const billing = mergeBilling(prof.billing);
-  const cards = prof.cards ?? [];
-
-  if (session.username === "admin") {
-    return {
-      username: "admin",
-      email: session.email,
-      role: "admin",
-      displayName: prof.displayName?.trim() || "Admin",
-      billing,
-      cards,
-    };
-  }
-
-  const u = loadUsers().find((x) => x.username === session.username);
-  if (!u) return null;
-  return {
-    username: u.username,
-    email: u.email,
-    role: u.role,
-    displayName: prof.displayName?.trim() || u.username,
-    billing,
-    cards,
+interface ApiRegisterResponse {
+  ok: boolean;
+  message?: string;
+  emailVerification?: {
+    enabled: boolean;
+    sent?: boolean;
+    message?: string;
+    expiresAt?: string | null;
+    devVerificationUrl?: string | null;
   };
 }
 
-function randomId(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
+interface ApiForgotPasswordResponse extends ApiMessageResponse {
+  devResetToken?: string;
+  devResetUrl?: string;
+  devTargetEmail?: string;
+  expiresAt?: string;
+}
+
+interface ApiVerificationResponse extends ApiMessageResponse {
+  verificationEnabled?: boolean;
+  devVerificationUrl?: string;
+  expiresAt?: string;
+}
+
+interface AuthActionResult {
+  ok: boolean;
+  message?: string;
+  user?: ApiAuthUser;
+  devResetToken?: string;
+  devResetUrl?: string;
+  devVerificationUrl?: string;
+  expiresAt?: string;
+}
+
+function buildUserFromSession(session: StoredAuthSession | null): User | null {
+  if (!session) return null;
+
+  return {
+    id: session.user.id,
+    username: session.user.username,
+    email: session.user.email,
+    role: session.user.role,
+    phone: session.user.phone,
+    displayName: session.user.displayName?.trim() || session.user.username,
+    billing: session.user.billing,
+    emailVerified: session.user.emailVerified,
+  };
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
-  return `c_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+  const apiError = error as ApiError | null;
+  if (apiError?.message) {
+    return apiError.message;
+  }
+
+  return fallback;
+}
+
+function mergeSessionResponse(
+  session: StoredAuthSession | null,
+  response: ApiAuthResponse,
+): StoredAuthSession {
+  return {
+    token: response.token,
+    refreshToken: response.refreshToken ?? session?.refreshToken ?? "",
+    user: response.user,
+  };
 }
 
 interface AuthContextValue {
   user: User | null;
-  login: (username: string, password: string) => { ok: boolean; message?: string };
+  isAdmin: boolean;
+  isLoading: boolean;
+  login: (username: string, password: string) => Promise<AuthActionResult>;
   register: (
     username: string,
     email: string,
     password: string,
-  ) => { ok: boolean; message?: string };
+    consents: {
+      acceptTerms: boolean;
+      acceptPrivacy: boolean;
+    },
+  ) => Promise<AuthActionResult>;
   logout: () => void;
-  isAdmin: boolean;
-  updateDisplayName: (displayName: string) => void;
-  updateBilling: (billing: BillingAddress) => void;
-  addCard: (card: Omit<SavedCard, "id">) => { ok: boolean; message?: string };
-  removeCard: (cardId: string) => void;
+  logoutAllSessions: () => Promise<AuthActionResult>;
+  updateDisplayName: (displayName: string) => Promise<AuthActionResult>;
+  updateBilling: (billing: BillingAddress) => Promise<AuthActionResult>;
   changeAccountEmail: (
     newEmail: string,
     currentPassword: string,
-  ) => { ok: boolean; message?: string };
+  ) => Promise<AuthActionResult>;
   changeAccountPassword: (
     currentPassword: string,
     newPassword: string,
-  ) => { ok: boolean; message?: string };
+  ) => Promise<AuthActionResult>;
+  updateAdminContact: (
+    email: string,
+    phone: string,
+    currentPassword: string,
+  ) => Promise<AuthActionResult>;
+  requestPasswordReset: (email: string) => Promise<AuthActionResult>;
+  requestEmailVerification: (identifier: string) => Promise<AuthActionResult>;
+  confirmEmailVerification: (token: string) => Promise<AuthActionResult>;
+  resetPassword: (
+    token: string,
+    newPassword: string,
+  ) => Promise<AuthActionResult>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -192,204 +159,470 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     if (typeof window === "undefined") return null;
-    return buildUserFromSession(loadSession());
+    return buildUserFromSession(loadAuthSession());
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(loadAuthSession()?.token);
   });
 
-  useEffect(() => {
-    setUser(buildUserFromSession(loadSession()));
-  }, []);
-
-  const refreshUser = useCallback(() => {
-    setUser(buildUserFromSession(loadSession()));
-  }, []);
-
-  const login = useCallback((username: string, password: string) => {
-    const u = username.trim();
-    const p = password;
-    if (u === "admin" && p === getStoredAdminPassword()) {
-      const session: Session = {
-        username: "admin",
-        email: "admin@serona.hu",
-        role: "admin",
-      };
-      saveSession(session);
-      setUser(buildUserFromSession(session));
-      return { ok: true };
+  const applySession = useCallback((session: StoredAuthSession | null) => {
+    if (session && !session.refreshToken) {
+      saveAuthSession(null);
+      setUser(null);
+      return;
     }
-    const users = loadUsers();
-    const found = users.find((x) => x.username === u && x.password === p);
-    if (!found) {
-      return { ok: false, message: "Hibás felhasználónév vagy jelszó." };
-    }
-    const session: Session = {
-      username: found.username,
-      email: found.email,
-      role: found.role,
-    };
-    saveSession(session);
+
+    saveAuthSession(session);
     setUser(buildUserFromSession(session));
-    return { ok: true };
   }, []);
+
+  useEffect(() => {
+    function handleSessionEvent() {
+      setUser(buildUserFromSession(loadAuthSession()));
+      setIsLoading(false);
+    }
+
+    window.addEventListener(AUTH_SESSION_EVENT, handleSessionEvent);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EVENT, handleSessionEvent);
+    };
+  }, []);
+
+  useEffect(() => {
+    const session = loadAuthSession();
+    if (!session?.token || !session.refreshToken) {
+      setIsLoading(false);
+      return;
+    }
+
+    const initialRefreshToken = session.refreshToken;
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        const response = await apiFetch<ApiAuthResponse>("/api/auth/me", {
+          auth: true,
+        });
+
+        if (cancelled) return;
+
+        const latest = loadAuthSession();
+        applySession(
+          mergeSessionResponse(latest ?? session, {
+            ...response,
+            refreshToken: latest?.refreshToken ?? initialRefreshToken,
+          }),
+        );
+      } catch {
+        if (cancelled) return;
+        applySession(null);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applySession]);
+
+  const login = useCallback(
+    async (username: string, password: string): Promise<AuthActionResult> => {
+      try {
+        const response = await apiFetch<ApiAuthResponse>("/api/auth/login", {
+          method: "POST",
+          json: { username, password },
+        });
+
+        applySession({
+          token: response.token,
+          refreshToken: response.refreshToken ?? "",
+          user: response.user,
+        });
+
+        return { ok: true, user: response.user };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(error, "Nem sikerult a belepes."),
+        };
+      }
+    },
+    [applySession],
+  );
 
   const register = useCallback(
-    (username: string, email: string, password: string) => {
-      const u = username.trim();
-      if (u.length < 3) {
-        return { ok: false, message: "A felhasználónév legalább 3 karakter legyen." };
+    async (
+      username: string,
+      email: string,
+      password: string,
+      consents: {
+        acceptTerms: boolean;
+        acceptPrivacy: boolean;
+      },
+    ): Promise<AuthActionResult> => {
+      try {
+        const response = await apiFetch<ApiRegisterResponse>(
+          "/api/auth/register",
+          {
+            method: "POST",
+            json: { username, email, password, ...consents },
+          },
+        );
+
+        return {
+          ok: true,
+          message: response.message,
+          devVerificationUrl:
+            response.emailVerification?.devVerificationUrl ?? undefined,
+          expiresAt: response.emailVerification?.expiresAt ?? undefined,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(error, "Nem sikerult a regisztracio."),
+        };
       }
-      if (password.length < 4) {
-        return { ok: false, message: "A jelszó legalább 4 karakter legyen." };
-      }
-      if (u === "admin") {
-        return { ok: false, message: "Ez a felhasználónév nem választható." };
-      }
-      const users = loadUsers();
-      if (users.some((x) => x.username === u)) {
-        return { ok: false, message: "Ez a felhasználónév már foglalt." };
-      }
-      const newUser: StoredUser = {
-        username: u,
-        email: email.trim(),
-        password,
-        role: "user",
-      };
-      saveUsers([...users, newUser]);
-      const session: Session = {
-        username: newUser.username,
-        email: newUser.email,
-        role: "user",
-      };
-      saveSession(session);
-      setUser(buildUserFromSession(session));
-      return { ok: true };
     },
     [],
   );
 
   const logout = useCallback(() => {
-    saveSession(null);
+    void apiFetch<ApiMessageResponse>("/api/auth/logout", {
+      method: "POST",
+      auth: true,
+    }).catch(() => undefined);
+    clearAuthSession();
     setUser(null);
   }, []);
 
-  const patchProfile = useCallback(
-    (username: string, patch: StoredProfile) => {
-      const all = loadProfiles();
-      const prev = all[username] ?? {};
-      all[username] = { ...prev, ...patch };
-      saveProfiles(all);
-      refreshUser();
-    },
-    [refreshUser],
-  );
+  const logoutAllSessions = useCallback(async (): Promise<AuthActionResult> => {
+    try {
+      const response = await apiFetch<ApiMessageResponse>("/api/auth/logout-all", {
+        method: "POST",
+        auth: true,
+      });
+
+      applySession(null);
+      return {
+        ok: true,
+        message: response.message ?? "Minden eszkozrol kijelentkeztettel.",
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: getErrorMessage(
+          error,
+          "Nem sikerult minden eszkozrol kijelentkezni.",
+        ),
+      };
+    }
+  }, [applySession]);
 
   const updateDisplayName = useCallback(
-    (displayName: string) => {
-      const s = loadSession();
-      if (!s) return;
-      patchProfile(s.username, { displayName: displayName.trim() });
+    async (displayName: string): Promise<AuthActionResult> => {
+      const session = loadAuthSession();
+      if (!session) {
+        return { ok: false, message: "Nincs bejelentkezve." };
+      }
+
+      try {
+        const response = await apiFetch<ApiAuthResponse & ApiMessageResponse>(
+          "/api/account/profile",
+          {
+            method: "PATCH",
+            auth: true,
+            json: { displayName },
+          },
+        );
+
+        applySession(mergeSessionResponse(session, response));
+
+        return {
+          ok: true,
+          message: response.message ?? "Profil frissitve.",
+          user: response.user,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(error, "Nem sikerult a profil mentese."),
+        };
+      }
     },
-    [patchProfile],
+    [applySession],
   );
 
   const updateBilling = useCallback(
-    (billing: BillingAddress) => {
-      const s = loadSession();
-      if (!s) return;
-      patchProfile(s.username, { billing });
-    },
-    [patchProfile],
-  );
-
-  const addCard = useCallback(
-    (card: Omit<SavedCard, "id">) => {
-      const s = loadSession();
-      if (!s) return { ok: false, message: "Nincs bejelentkezve." };
-      const last4 = card.last4.replace(/\D/g, "").slice(-4);
-      if (last4.length !== 4) {
-        return { ok: false, message: "Add meg a kártya utolsó 4 számjegyét." };
+    async (billing: BillingAddress): Promise<AuthActionResult> => {
+      const session = loadAuthSession();
+      if (!session) {
+        return { ok: false, message: "Nincs bejelentkezve." };
       }
-      const prof = getStoredProfile(s.username);
-      const cards = [...(prof.cards ?? [])];
-      const newCard: SavedCard = {
-        ...card,
-        id: randomId(),
-        last4,
-      };
-      cards.push(newCard);
-      patchProfile(s.username, { cards });
-      return { ok: true };
-    },
-    [patchProfile],
-  );
 
-  const removeCard = useCallback(
-    (cardId: string) => {
-      const s = loadSession();
-      if (!s) return;
-      const prof = getStoredProfile(s.username);
-      const cards = (prof.cards ?? []).filter((c) => c.id !== cardId);
-      patchProfile(s.username, { cards });
+      try {
+        const response = await apiFetch<ApiAuthResponse & ApiMessageResponse>(
+          "/api/account/profile",
+          {
+            method: "PATCH",
+            auth: true,
+            json: { billing },
+          },
+        );
+
+        applySession(mergeSessionResponse(session, response));
+
+        return {
+          ok: true,
+          message: response.message ?? "Szamlazasi cim frissitve.",
+          user: response.user,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(
+            error,
+            "Nem sikerult a szamlazasi cim mentese.",
+          ),
+        };
+      }
     },
-    [patchProfile],
+    [applySession],
   );
 
   const changeAccountEmail = useCallback(
-    (newEmail: string, currentPassword: string) => {
-      const s = loadSession();
-      if (!s) return { ok: false, message: "Nincs bejelentkezve." };
-      const email = newEmail.trim();
-      if (!email.includes("@")) {
-        return { ok: false, message: "Érvénytelen e-mail cím." };
+    async (
+      newEmail: string,
+      currentPassword: string,
+    ): Promise<AuthActionResult> => {
+      const session = loadAuthSession();
+      if (!session) {
+        return { ok: false, message: "Nincs bejelentkezve." };
       }
 
-      if (s.username === "admin") {
-        if (currentPassword !== getStoredAdminPassword()) {
-          return { ok: false, message: "A jelenlegi jelszó nem egyezik." };
-        }
-        const next: Session = { ...s, email };
-        saveSession(next);
-        refreshUser();
-        return { ok: true };
-      }
+      try {
+        const response = await apiFetch<ApiAuthResponse & ApiMessageResponse>(
+          "/api/auth/email",
+          {
+            method: "PATCH",
+            auth: true,
+            json: { newEmail, currentPassword },
+          },
+        );
 
-      const users = loadUsers();
-      const idx = users.findIndex((x) => x.username === s.username);
-      if (idx < 0) return { ok: false, message: "Felhasználó nem található." };
-      if (users[idx].password !== currentPassword) {
-        return { ok: false, message: "A jelenlegi jelszó nem egyezik." };
+        applySession(mergeSessionResponse(session, response));
+
+        return {
+          ok: true,
+          message: response.message ?? "E-mail cim frissitve.",
+          user: response.user,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(error, "Nem sikerult az e-mail csere."),
+        };
       }
-      users[idx] = { ...users[idx], email };
-      saveUsers(users);
-      const next: Session = { ...s, email };
-      saveSession(next);
-      refreshUser();
-      return { ok: true };
     },
-    [refreshUser],
+    [applySession],
   );
 
   const changeAccountPassword = useCallback(
-    (currentPassword: string, newPassword: string) => {
-      const s = loadSession();
-      if (!s) return { ok: false, message: "Nincs bejelentkezve." };
-      if (s.username === "admin") {
+    async (
+      currentPassword: string,
+      newPassword: string,
+    ): Promise<AuthActionResult> => {
+      try {
+        const response = await apiFetch<ApiMessageResponse>(
+          "/api/auth/password",
+          {
+            method: "PATCH",
+            auth: true,
+            json: { currentPassword, newPassword },
+          },
+        );
+
+        return {
+          ok: true,
+          message: response.message ?? "Jelszo frissitve.",
+        };
+      } catch (error) {
         return {
           ok: false,
-          message: "Admin jelszót az Admin → Általános beállításokban változtathatod.",
+          message: getErrorMessage(error, "Nem sikerult a jelszocsere."),
         };
       }
-      if (newPassword.length < 4) {
-        return { ok: false, message: "Az új jelszó legalább 4 karakter legyen." };
+    },
+    [],
+  );
+
+  const updateAdminContact = useCallback(
+    async (
+      email: string,
+      phone: string,
+      currentPassword: string,
+    ): Promise<AuthActionResult> => {
+      const session = loadAuthSession();
+      if (!session) {
+        return { ok: false, message: "Nincs bejelentkezve." };
       }
-      const users = loadUsers();
-      const idx = users.findIndex((x) => x.username === s.username);
-      if (idx < 0) return { ok: false, message: "Felhasználó nem található." };
-      if (users[idx].password !== currentPassword) {
-        return { ok: false, message: "A jelenlegi jelszó nem egyezik." };
+
+      if (session.user.role !== "admin") {
+        return {
+          ok: false,
+          message: "Ehhez admin jogosultsag kell.",
+        };
       }
-      users[idx] = { ...users[idx], password: newPassword };
-      saveUsers(users);
-      return { ok: true };
+
+      try {
+        const response = await apiFetch<ApiAuthResponse & ApiMessageResponse>(
+          "/api/auth/admin/profile",
+          {
+            method: "PATCH",
+            auth: true,
+            json: { email, phone, currentPassword },
+          },
+        );
+
+        applySession(mergeSessionResponse(session, response));
+
+        return {
+          ok: true,
+          message: response.message ?? "Admin adatok frissitve.",
+          user: response.user,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(
+            error,
+            "Nem sikerult az admin adatok frissitese.",
+          ),
+        };
+      }
+    },
+    [applySession],
+  );
+
+  const requestPasswordReset = useCallback(
+    async (email: string): Promise<AuthActionResult> => {
+      try {
+        const response = await apiFetch<ApiForgotPasswordResponse>(
+          "/api/auth/password/forgot",
+          {
+            method: "POST",
+            json: { email },
+          },
+        );
+
+        return {
+          ok: true,
+          message: response.message,
+          devResetToken: response.devResetToken,
+          devResetUrl: response.devResetUrl,
+          expiresAt: response.expiresAt,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(
+            error,
+            "Nem sikerult elinditani a jelszo-visszaallitast.",
+          ),
+        };
+      }
+    },
+    [],
+  );
+
+  const requestEmailVerification = useCallback(
+    async (identifier: string): Promise<AuthActionResult> => {
+      try {
+        const response = await apiFetch<ApiVerificationResponse>(
+          "/api/auth/verification/request",
+          {
+            method: "POST",
+            json: { identifier },
+          },
+        );
+
+        return {
+          ok: true,
+          message: response.message,
+          devVerificationUrl: response.devVerificationUrl,
+          expiresAt: response.expiresAt,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(
+            error,
+            "Nem sikerult uj megerosito levelet kerni.",
+          ),
+        };
+      }
+    },
+    [],
+  );
+
+  const confirmEmailVerification = useCallback(
+    async (token: string): Promise<AuthActionResult> => {
+      try {
+        const response = await apiFetch<ApiMessageResponse>(
+          "/api/auth/verification/confirm",
+          {
+            method: "POST",
+            json: { token },
+          },
+        );
+
+        return {
+          ok: true,
+          message:
+            response.message ?? "Az e-mail cimed sikeresen megerositesre kerult.",
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(
+            error,
+            "Nem sikerult megerositeni az e-mail cimet.",
+          ),
+        };
+      }
+    },
+    [],
+  );
+
+  const resetPassword = useCallback(
+    async (token: string, newPassword: string): Promise<AuthActionResult> => {
+      try {
+        const response = await apiFetch<ApiMessageResponse>(
+          "/api/auth/password/reset",
+          {
+            method: "POST",
+            json: { token, newPassword },
+          },
+        );
+
+        return {
+          ok: true,
+          message: response.message ?? "A jelszo sikeresen frissult.",
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message: getErrorMessage(
+            error,
+            "Nem sikerult visszaallitani a jelszot.",
+          ),
+        };
+      }
     },
     [],
   );
@@ -399,39 +632,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       user,
+      isAdmin,
+      isLoading,
       login,
       register,
       logout,
-      isAdmin,
+      logoutAllSessions,
       updateDisplayName,
       updateBilling,
-      addCard,
-      removeCard,
       changeAccountEmail,
       changeAccountPassword,
+      updateAdminContact,
+      requestPasswordReset,
+      requestEmailVerification,
+      confirmEmailVerification,
+      resetPassword,
     }),
     [
       user,
+      isAdmin,
+      isLoading,
       login,
       register,
       logout,
-      isAdmin,
+      logoutAllSessions,
       updateDisplayName,
       updateBilling,
-      addCard,
-      removeCard,
       changeAccountEmail,
       changeAccountPassword,
+      updateAdminContact,
+      requestPasswordReset,
+      requestEmailVerification,
+      confirmEmailVerification,
+      resetPassword,
     ],
   );
 
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
 }

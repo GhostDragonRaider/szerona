@@ -1,6 +1,6 @@
 /**
- * Regisztráció modális űrlap: felhasználónév, email, jelszó + megerősítés.
- * Siker után automatikus bejelentkezés (mock localStorage).
+ * Regisztráció modális űrlap. Siker után nem léptet be automatikusan,
+ * hanem egy frontend-oldali e-mail megerősítő tájékoztató nézetet mutat.
  */
 import styled from "@emotion/styled";
 import type { FormEvent } from "react";
@@ -49,6 +49,23 @@ const Title = styled.h2`
   font-size: 1.75rem;
 `;
 
+const Copy = styled.p`
+  margin: 0 0 ${({ theme }) => theme.space.md};
+  line-height: 1.6;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const MailBadge = styled.div`
+  margin: 0 0 ${({ theme }) => theme.space.lg};
+  padding: ${({ theme }) => theme.space.md};
+  border-radius: ${({ theme }) => theme.radii.md};
+  background: ${({ theme }) => theme.colors.surfaceElevated};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  color: ${({ theme }) => theme.colors.text};
+  font-weight: 600;
+  word-break: break-word;
+`;
+
 const Field = styled.label`
   display: block;
   margin-bottom: ${({ theme }) => theme.space.md};
@@ -66,6 +83,31 @@ const Input = styled.input`
   background: ${({ theme }) => theme.colors.bg};
   color: ${({ theme }) => theme.colors.text};
   font-family: ${({ theme }) => theme.fonts.body};
+`;
+
+const CheckboxGroup = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.space.sm};
+  margin-top: ${({ theme }) => theme.space.md};
+`;
+
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: flex-start;
+  gap: ${({ theme }) => theme.space.sm};
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const Checkbox = styled.input`
+  margin-top: 2px;
+`;
+
+const LegalLink = styled.a`
+  color: ${({ theme }) => theme.colors.accent};
+  text-decoration: none;
+  font-weight: 700;
 `;
 
 const Err = styled.p`
@@ -111,93 +153,226 @@ interface RegisterModalProps {
 }
 
 export function RegisterModal({ open, onClose }: RegisterModalProps) {
-  const { register } = useAuth();
+  const { register, requestEmailVerification } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(
+    null,
+  );
 
-  function handleSubmit(e: FormEvent) {
+  const isConfirmationView = Boolean(confirmationEmail);
+
+  function resetState() {
+    setUsername("");
+    setEmail("");
+    setPassword("");
+    setPassword2("");
+    setAcceptTerms(false);
+    setAcceptPrivacy(false);
+    setError(null);
+    setIsSubmitting(false);
+    setConfirmationEmail(null);
+  }
+
+  function handleClose() {
+    resetState();
+    onClose();
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setError(null);
     if (password !== password2) {
       setError("A két jelszó nem egyezik.");
       return;
     }
-    const res = register(username, email, password);
+
+    if (!acceptTerms || !acceptPrivacy) {
+      setError(
+        "A regisztrációhoz el kell fogadnod az ÁSZF-et és az adatkezelési tájékoztatót.",
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    const res = await register(username, email, password, {
+      acceptTerms,
+      acceptPrivacy,
+    });
+    setIsSubmitting(false);
+
     if (!res.ok) {
       setError(res.message ?? "Hiba történt.");
       return;
     }
+
+    setConfirmationEmail(email.trim());
     setUsername("");
     setEmail("");
     setPassword("");
     setPassword2("");
-    onClose();
+    setAcceptTerms(false);
+    setAcceptPrivacy(false);
+  }
+
+  async function handleResend() {
+    if (!confirmationEmail || isSubmitting) return;
+
+    setIsSubmitting(true);
+    const result = await requestEmailVerification(confirmationEmail);
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setError(result.message ?? "Nem sikerült új megerősítő levelet küldeni.");
+      return;
+    }
+
+    setError(null);
   }
 
   if (!open) return null;
 
   return (
-    <Backdrop open={open} onClick={onClose}>
+    <Backdrop open={open} onClick={handleClose}>
       <Dialog
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="reg-title"
         aria-modal="true"
       >
-        <Title id="reg-title">Regisztráció</Title>
-        <form onSubmit={handleSubmit}>
-          <Field>
-            Felhasználónév
-            <Input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              required
-              minLength={3}
-            />
-          </Field>
-          <Field>
-            E-mail
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              required
-            />
-          </Field>
-          <Field>
-            Jelszó
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-              minLength={4}
-            />
-          </Field>
-          <Field>
-            Jelszó újra
-            <Input
-              type="password"
-              value={password2}
-              onChange={(e) => setPassword2(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
-          </Field>
-          {error ? <Err>{error}</Err> : null}
-          <Row>
-            <BtnGhost type="button" onClick={onClose}>
-              Mégse
-            </BtnGhost>
-            <BtnPrimary type="submit">Fiók létrehozása</BtnPrimary>
-          </Row>
-        </form>
+        {isConfirmationView ? (
+          <>
+            <Title id="reg-title">E-mail megerősítés</Title>
+            <Copy>
+              Küldtünk egy megerősítő linket az alábbi e-mail címre. A fiókod
+              megerősítése ezen a linken keresztül fog történni.
+            </Copy>
+            <MailBadge>{confirmationEmail}</MailBadge>
+            {error ? <Err>{error}</Err> : null}
+            <Row>
+              <BtnGhost
+                type="button"
+                onClick={handleResend}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Küldés..." : "Levél újraküldése"}
+              </BtnGhost>
+              <BtnPrimary type="button" onClick={handleClose}>
+                Rendben
+              </BtnPrimary>
+            </Row>
+          </>
+        ) : (
+          <>
+            <Title id="reg-title">Regisztráció</Title>
+            <form onSubmit={handleSubmit}>
+              <Field>
+                Felhasználónév
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                  disabled={isSubmitting}
+                  required
+                  minLength={3}
+                />
+              </Field>
+              <Field>
+                E-mail
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  disabled={isSubmitting}
+                  required
+                />
+              </Field>
+              <Field>
+                Jelszó
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  disabled={isSubmitting}
+                  required
+                  minLength={8}
+                />
+              </Field>
+              <Field>
+                Jelszó újra
+                <Input
+                  type="password"
+                  value={password2}
+                  onChange={(e) => setPassword2(e.target.value)}
+                  autoComplete="new-password"
+                  disabled={isSubmitting}
+                  required
+                />
+              </Field>
+              <CheckboxGroup>
+                <CheckboxLabel>
+                  <Checkbox
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    disabled={isSubmitting}
+                    required
+                  />
+                  <span>
+                    Elfogadom az{" "}
+                    <LegalLink href="/aszf" target="_blank" rel="noreferrer">
+                      Általános Szerződési Feltételeket
+                    </LegalLink>
+                    .
+                  </span>
+                </CheckboxLabel>
+                <CheckboxLabel>
+                  <Checkbox
+                    type="checkbox"
+                    checked={acceptPrivacy}
+                    onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                    disabled={isSubmitting}
+                    required
+                  />
+                  <span>
+                    Elfogadom az{" "}
+                    <LegalLink
+                      href="/adatkezelesi-tajekoztato"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      adatkezelési tájékoztatót
+                    </LegalLink>
+                    .
+                  </span>
+                </CheckboxLabel>
+              </CheckboxGroup>
+              {error ? <Err>{error}</Err> : null}
+              <Row>
+                <BtnGhost
+                  type="button"
+                  onClick={handleClose}
+                  disabled={isSubmitting}
+                >
+                  Mégse
+                </BtnGhost>
+                <BtnPrimary type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Regisztráció..." : "Fiók létrehozása"}
+                </BtnPrimary>
+              </Row>
+            </form>
+          </>
+        )}
       </Dialog>
     </Backdrop>
   );
