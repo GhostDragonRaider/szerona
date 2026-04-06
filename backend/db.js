@@ -2053,6 +2053,9 @@ function createSqliteAdapter() {
         `,
       ).run(scope, throttleKey);
     },
+    async clearAllThrottles() {
+      db.prepare("DELETE FROM auth_throttles").run();
+    },
     async createPasswordResetToken({
       userType,
       userId,
@@ -4360,6 +4363,9 @@ function createPostgresAdapter() {
         [scope, throttleKey],
       );
     },
+    async clearAllThrottles() {
+      await pool.query("DELETE FROM auth_throttles");
+    },
     async createPasswordResetToken({
       userType,
       userId,
@@ -5265,6 +5271,7 @@ module.exports = {
   getThrottle: (...args) => getAdapter().getThrottle(...args),
   upsertThrottle: (...args) => getAdapter().upsertThrottle(...args),
   clearThrottle: (...args) => getAdapter().clearThrottle(...args),
+  clearAllThrottles: (...args) => getAdapter().clearAllThrottles(...args),
   createPasswordResetToken: (...args) =>
     getAdapter().createPasswordResetToken(...args),
   findPasswordResetToken: (...args) =>

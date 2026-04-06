@@ -3,7 +3,7 @@ const express = require("express");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { config } = require("./config");
-const { getDatabaseDriver, initDatabase } = require("./db");
+const { clearAllThrottles, getDatabaseDriver, initDatabase } = require("./db");
 const adminRouter = require("./routes/admin");
 const accountRouter = require("./routes/account");
 const authRouter = require("./routes/auth");
@@ -18,7 +18,13 @@ let readyPromise = null;
 
 function ensureReady() {
   if (!readyPromise) {
-    readyPromise = initDatabase();
+    readyPromise = initDatabase().then(async (database) => {
+      if (config.relaxedAuthGuards) {
+        await clearAllThrottles();
+      }
+
+      return database;
+    });
   }
 
   return readyPromise;
@@ -46,6 +52,7 @@ function sendHealth(res) {
     database: getDatabaseDriver(),
     deployment: {
       isVercel: config.isVercel,
+      relaxedAuthGuards: config.relaxedAuthGuards,
       sqlitePath: config.databaseUrl ? null : config.sqlitePath,
       hasFallbackJwtSecret: !process.env.JWT_SECRET,
       hasDatabaseUrl: Boolean(config.databaseUrl),
