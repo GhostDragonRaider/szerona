@@ -8,6 +8,15 @@ const DEFAULT_CORS_ORIGINS = [
   "http://127.0.0.1:5173",
 ];
 
+function buildHttpsUrl(hostname) {
+  const normalized = emptyStringToNull(hostname);
+  return normalized ? `https://${normalized}` : null;
+}
+
+function uniqueOrigins(origins) {
+  return [...new Set(origins.filter(Boolean))];
+}
+
 function emptyStringToNull(value) {
   if (typeof value !== "string") {
     return value ?? null;
@@ -19,10 +28,6 @@ function emptyStringToNull(value) {
 
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
 const bcryptRounds = Number.parseInt(process.env.BCRYPT_ROUNDS ?? "12", 10);
-const corsOrigins = (process.env.CORS_ORIGINS ?? DEFAULT_CORS_ORIGINS.join(","))
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
 const refreshTokenDays = Number.parseInt(
   process.env.REFRESH_TOKEN_DAYS ?? "30",
   10,
@@ -69,6 +74,26 @@ const paymentProvider =
     ? paymentProviderFromEnv
     : "none";
 const paymentPublicKey = emptyStringToNull(process.env.PAYMENT_PUBLIC_KEY);
+const vercelDeploymentUrl = buildHttpsUrl(process.env.VERCEL_URL);
+const vercelBranchUrl = buildHttpsUrl(process.env.VERCEL_BRANCH_URL);
+const vercelProductionUrl = buildHttpsUrl(
+  process.env.VERCEL_PROJECT_PRODUCTION_URL,
+);
+const frontendBaseUrl =
+  emptyStringToNull(process.env.FRONTEND_BASE_URL) ??
+  vercelProductionUrl ??
+  vercelDeploymentUrl ??
+  DEFAULT_CORS_ORIGINS[0];
+const corsOrigins = uniqueOrigins([
+  ...(process.env.CORS_ORIGINS ?? DEFAULT_CORS_ORIGINS.join(","))
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  frontendBaseUrl,
+  vercelDeploymentUrl,
+  vercelBranchUrl,
+  vercelProductionUrl,
+]);
 
 const config = {
   port: Number.isFinite(port) ? port : 3000,
@@ -101,8 +126,7 @@ const config = {
       : 12,
   corsOrigins,
   emailVerificationEnabled: Boolean(emptyStringToNull(process.env.RESEND_API_KEY)),
-  frontendBaseUrl:
-    process.env.FRONTEND_BASE_URL ?? DEFAULT_CORS_ORIGINS[0],
+  frontendBaseUrl,
   refreshTokenDays:
     Number.isFinite(refreshTokenDays) && refreshTokenDays >= 1
       ? refreshTokenDays

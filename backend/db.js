@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const bcrypt = require("bcryptjs");
-const Database = require("better-sqlite3");
 const { Pool } = require("pg");
 const { config } = require("./config");
 const {
@@ -14,6 +13,15 @@ const { seedProducts } = require("./data/seedProducts");
 const { generateOpaqueToken } = require("./utils/security");
 
 let adapter = null;
+let BetterSqlite3 = null;
+
+function getSqliteConstructor() {
+  if (!BetterSqlite3) {
+    BetterSqlite3 = require("better-sqlite3");
+  }
+
+  return BetterSqlite3;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -598,6 +606,7 @@ function buildCartResponse(lines) {
 function createSqliteAdapter() {
   fs.mkdirSync(path.dirname(config.sqlitePath), { recursive: true });
 
+  const Database = getSqliteConstructor();
   const db = new Database(config.sqlitePath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");

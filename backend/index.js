@@ -14,6 +14,15 @@ const productsRouter = require("./routes/products");
 
 const app = express();
 const serverStartedAt = new Date();
+let readyPromise = null;
+
+function ensureReady() {
+  if (!readyPromise) {
+    readyPromise = initDatabase();
+  }
+
+  return readyPromise;
+}
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
@@ -39,6 +48,14 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "10kb" }));
+app.use(async (req, res, next) => {
+  try {
+    await ensureReady();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -111,7 +128,7 @@ app.use((err, req, res, next) => {
 });
 
 async function start() {
-  const database = await initDatabase();
+  const database = await ensureReady();
   app.listen(config.port, () => {
     console.log(
       `API kész: http://localhost:${config.port}/api/health (${database.name})`,
@@ -119,7 +136,16 @@ async function start() {
   });
 }
 
-start().catch((error) => {
-  console.error("A szerver nem tudott elindulni.", error);
-  process.exit(1);
-});
+if (require.main === module) {
+  start().catch((error) => {
+    console.error("A szerver nem tudott elindulni.", error);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  app,
+  ensureReady,
+  serverStartedAt,
+  start,
+};

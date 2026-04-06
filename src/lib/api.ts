@@ -17,9 +17,15 @@ export interface ApiError extends Error {
   payload?: unknown;
 }
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000"
-).replace(/\/+$/, "");
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+const defaultApiBaseUrl =
+  import.meta.env.DEV || typeof window === "undefined"
+    ? "http://localhost:3000"
+    : window.location.origin;
+const API_BASE_URL = (configuredApiBaseUrl || defaultApiBaseUrl).replace(
+  /\/+$/,
+  "",
+);
 
 function buildHeaders(token?: string, headers?: HeadersInit, hasJson?: boolean) {
   const nextHeaders = new Headers(headers);
