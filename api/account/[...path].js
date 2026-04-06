@@ -1,4 +1,4 @@
-import backend from "../backend/index.js";
+import backend from "../../backend/index.js";
 
 const { app, ensureReady } = backend;
 
