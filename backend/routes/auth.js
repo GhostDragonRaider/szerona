@@ -174,7 +174,9 @@ async function sendUserVerificationEmail({
     config.emailVerificationMinutes,
   );
 
-  await clearEmailVerificationTokensForUser("user", String(userId), purpose);
+  if (purpose !== "registration") {
+    await clearEmailVerificationTokensForUser("user", String(userId), purpose);
+  }
   await createEmailVerificationToken({
     userType: "user",
     userId: String(userId),
