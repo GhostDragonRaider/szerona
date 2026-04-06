@@ -1,3 +1,3 @@
 import { createVercelProxyHandler } from "../vercel-api-proxy.mjs";
 
-export default createVercelProxyHandler("/api/products");
+export default createVercelProxyHandler("/api");
