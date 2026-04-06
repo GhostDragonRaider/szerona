@@ -64,9 +64,12 @@ const lowStockThreshold = Number.parseInt(
   process.env.LOW_STOCK_THRESHOLD ?? "5",
   10,
 );
+const isVercel = process.env.VERCEL === "1";
 const sqlitePathFromEnv = emptyStringToNull(process.env.SQLITE_PATH);
 const sqlitePath = sqlitePathFromEnv
   ? path.resolve(__dirname, sqlitePathFromEnv)
+  : isVercel && !process.env.DATABASE_URL
+    ? path.join("/tmp", "serona.sqlite")
   : path.join(__dirname, "data", "serona.sqlite");
 const paymentProviderFromEnv = emptyStringToNull(process.env.PAYMENT_PROVIDER);
 const paymentProvider =
@@ -79,6 +82,8 @@ const vercelBranchUrl = buildHttpsUrl(process.env.VERCEL_BRANCH_URL);
 const vercelProductionUrl = buildHttpsUrl(
   process.env.VERCEL_PROJECT_PRODUCTION_URL,
 );
+const databaseUrl = emptyStringToNull(process.env.DATABASE_URL);
+const jwtSecretFromEnv = emptyStringToNull(process.env.JWT_SECRET);
 const frontendBaseUrl =
   emptyStringToNull(process.env.FRONTEND_BASE_URL) ??
   vercelProductionUrl ??
@@ -98,12 +103,17 @@ const corsOrigins = uniqueOrigins([
 const config = {
   port: Number.isFinite(port) ? port : 3000,
   nodeEnv: process.env.NODE_ENV ?? "development",
-  databaseUrl: process.env.DATABASE_URL,
+  isVercel,
+  databaseUrl,
   databaseSsl:
     process.env.DATABASE_SSL === "true" ||
     process.env.NODE_ENV === "production",
   sqlitePath,
-  jwtSecret: process.env.JWT_SECRET ?? "serona-dev-secret-change-me",
+  jwtSecret:
+    jwtSecretFromEnv ??
+    (isVercel
+      ? `serona-vercel-fallback-${process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL ?? "preview"}`
+      : "serona-dev-secret-change-me"),
   accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN ?? "15m",
   jwtIssuer: process.env.JWT_ISSUER ?? "serona-api",
   jwtAudience: process.env.JWT_AUDIENCE ?? "serona-web",
@@ -172,11 +182,25 @@ const config = {
 };
 
 if (config.nodeEnv === "production") {
-  if (!config.databaseUrl) {
+  if (!config.databaseUrl && !config.isVercel) {
     throw new Error("Hiányzó DATABASE_URL beállítás production módban.");
   }
-  if (!process.env.JWT_SECRET) {
+  if (!jwtSecretFromEnv && !config.isVercel) {
     throw new Error("Hiányzó JWT_SECRET beállítás production módban.");
+  }
+}
+
+if (config.nodeEnv === "production" && config.isVercel) {
+  if (!config.databaseUrl) {
+    console.warn(
+      "Vercel fallback mód: nincs DATABASE_URL, ideiglenes /tmp SQLite adatbázis indul.",
+    );
+  }
+
+  if (!jwtSecretFromEnv) {
+    console.warn(
+      "Vercel fallback mód: nincs JWT_SECRET, ideiglenes deploy-szintű titok kerül használatra.",
+    );
   }
 }
 

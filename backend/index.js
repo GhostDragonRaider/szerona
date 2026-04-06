@@ -44,6 +44,12 @@ function sendHealth(res) {
     uptimeSeconds: Math.floor(process.uptime()),
     emailVerificationEnabled: config.emailVerificationEnabled,
     database: getDatabaseDriver(),
+    deployment: {
+      isVercel: config.isVercel,
+      sqlitePath: config.databaseUrl ? null : config.sqlitePath,
+      hasFallbackJwtSecret: !process.env.JWT_SECRET,
+      hasDatabaseUrl: Boolean(config.databaseUrl),
+    },
     auth: {
       accessToken: config.accessTokenExpiresIn,
       refreshTokenDays: config.refreshTokenDays,
