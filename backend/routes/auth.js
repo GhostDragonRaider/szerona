@@ -43,6 +43,7 @@ const {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } = require("../services/authEmails");
+const { canSendEmail } = require("../services/mailer");
 const { asyncHandler } = require("../utils/http");
 const { hashToken, safeEqual } = require("../utils/security");
 const {
@@ -155,11 +156,16 @@ function buildVerificationUrl(token) {
   return `${config.frontendBaseUrl.replace(/\/+$/, "")}/verify-email?token=${encodeURIComponent(token)}`;
 }
 
+function shouldExposeDirectAuthLink(emailSent) {
+  return config.nodeEnv !== "production" || config.relaxedAuthGuards || !emailSent;
+}
+
 async function sendUserVerificationEmail({
   userId,
   email,
   username,
   purpose = "registration",
+  sendEmail = canSendEmail(),
 }) {
   const token = createVerificationToken();
   const tokenHash = hashToken(token);
@@ -179,17 +185,29 @@ async function sendUserVerificationEmail({
   });
 
   const verificationUrl = buildVerificationUrl(token);
-  await sendVerificationEmail({
-    to: email,
-    username,
-    verificationUrl,
-    expiresAt,
-  });
+  let sent = false;
+  let deliveryError = null;
+
+  if (sendEmail) {
+    try {
+      await sendVerificationEmail({
+        to: email,
+        username,
+        verificationUrl,
+        expiresAt,
+      });
+      sent = true;
+    } catch (error) {
+      deliveryError = error;
+    }
+  }
 
   return {
     token,
     expiresAt,
     verificationUrl,
+    sent,
+    deliveryError,
   };
 }
 
@@ -361,37 +379,40 @@ router.post(
     });
 
     let verification = {
-      enabled: config.emailVerificationEnabled,
+      enabled: true,
       sent: false,
       expiresAt: null,
       devVerificationUrl: null,
     };
 
-    if (config.emailVerificationEnabled) {
-      try {
-        const result = await sendUserVerificationEmail({
-          userId: user.id,
-          email,
-          username,
-        });
+    try {
+      const result = await sendUserVerificationEmail({
+        userId: user.id,
+        email,
+        username,
+      });
 
-        verification = {
-          enabled: true,
-          sent: true,
-          expiresAt: result.expiresAt,
-          devVerificationUrl:
-            config.nodeEnv === "production" ? null : result.verificationUrl,
-        };
-      } catch (error) {
-        console.error("A megerosito e-mail kuldese sikertelen volt.", error);
+      if (result.deliveryError) {
+        console.error("A megerősítő e-mail küldése sikertelen volt.", result.deliveryError);
       }
+
+      verification = {
+        enabled: true,
+        sent: result.sent,
+        expiresAt: result.expiresAt,
+        devVerificationUrl: shouldExposeDirectAuthLink(result.sent)
+          ? result.verificationUrl
+          : null,
+      };
+    } catch (error) {
+      console.error("A megerősítő token létrehozása sikertelen volt.", error);
     }
 
     res.status(201).json({
       ok: true,
       message: verification.sent
-        ? "Sikeres regisztracio. Kikuldtuk a fiokmegerosito e-mailt."
-        : "Sikeres regisztracio. A fiok megerositeset a megerosito linkkel tudod befejezni.",
+        ? "Sikeres regisztráció. Kiküldtük a fiókmegerősítő e-mailt."
+        : "Sikeres regisztráció. A fiók megerősítését a megjelenített linken tudod befejezni.",
       emailVerification: verification,
     });
   }),
@@ -463,13 +484,29 @@ router.post(
 
     if (!userRow.email_verified) {
       await clearLoginFailures(identifier, req);
-      res.status(403).json({
+      const response = {
         ok: false,
         message:
-          "Az e-mail cimed meg nincs megerositve. Kattints a kikuldott linkre, vagy kerj uj megerosito levelet.",
+          "Az e-mail címed még nincs megerősítve. Kattints a kiküldött linkre, vagy kérj új megerősítő levelet.",
         verificationRequired: true,
         email: userRow.email,
-      });
+      };
+
+      if (!canSendEmail()) {
+        const result = await sendUserVerificationEmail({
+          userId: userRow.id,
+          email: userRow.email,
+          username: userRow.username,
+          sendEmail: false,
+        });
+
+        response.message =
+          "Az e-mail címed még nincs megerősítve. Ebben a környezetben a megerősítő linket közvetlenül itt tudod megnyitni.";
+        response.devVerificationUrl = result.verificationUrl;
+        response.expiresAt = result.expiresAt;
+      }
+
+      res.status(403).json(response);
       return;
     }
 
@@ -731,47 +768,35 @@ router.patch(
       return;
     }
 
-    const previousEmail = userRow.email;
-    const previousVerified = Boolean(userRow.email_verified);
-
     await updateUserEmail(req.auth.sub, newEmail);
 
-    try {
-      await sendUserVerificationEmail({
-        userId: req.auth.sub,
-        email: newEmail,
-        username: userRow.username,
-        purpose: "email_change",
-      });
-    } catch (error) {
-      console.error("Az uj e-mail cim megerosito levele nem ment ki.", error);
+    const verificationResult = await sendUserVerificationEmail({
+      userId: req.auth.sub,
+      email: newEmail,
+      username: userRow.username,
+      purpose: "email_change",
+    });
 
-      await clearEmailVerificationTokensForUser(
-        "user",
-        String(req.auth.sub),
-        "email_change",
+    if (verificationResult.deliveryError) {
+      console.error(
+        "Az új e-mail cím megerősítő levele nem ment ki.",
+        verificationResult.deliveryError,
       );
-      await updateUserEmail(req.auth.sub, previousEmail);
-      if (previousVerified) {
-        await markUserEmailVerified(req.auth.sub);
-      }
-
-      res.status(502).json({
-        ok: false,
-        message:
-          "Nem sikerult kikuldeni a megerosito levelet az uj e-mail cimre, ezert a modositas nem lett elmentve.",
-      });
-      return;
     }
 
     const user = await getHydratedUser(req.auth.sub);
 
     res.json({
       ok: true,
-      message:
-        "E-mail cim frissitve. A veglegesiteshez erositd meg az uj e-mail cimet a kikuldott linken.",
+      message: verificationResult.sent
+        ? "E-mail cím frissítve. A véglegesítéshez erősítsd meg az új e-mail címet a kiküldött linken."
+        : "E-mail cím frissítve. A véglegesítéshez nyisd meg a közvetlenül megjelenített megerősítő linket.",
       user,
       token: signAccessToken(user, req.authSession.id, false),
+      devVerificationUrl: shouldExposeDirectAuthLink(verificationResult.sent)
+        ? verificationResult.verificationUrl
+        : null,
+      expiresAt: verificationResult.expiresAt,
     });
   }),
 );
@@ -877,6 +902,15 @@ router.post(
   "/password/forgot",
   forgotPasswordLimiter,
   asyncHandler(async (req, res) => {
+    if (config.nodeEnv === "production" && !canSendEmail()) {
+      res.status(503).json({
+        ok: false,
+        message:
+          "A jelszó-visszaállító e-mail küldése ebben a környezetben még nincs beállítva.",
+      });
+      return;
+    }
+
     const email = normalizeEmail(req.body?.email);
     const emailError = validateEmail(email);
 
@@ -1087,9 +1121,19 @@ router.post(
     const response = {
       ok: true,
       message:
-        "Ha talaltunk nem megerositett fiokot ehhez az azonositohoz, kuldtunk uj megerosito levelet.",
-      verificationEnabled: config.emailVerificationEnabled,
+        "Ha találtunk nem megerősített fiókot ehhez az azonosítóhoz, kiküldtük az új megerősítő levelet.",
+      verificationEnabled: true,
     };
+
+    if (config.nodeEnv === "production" && !canSendEmail()) {
+      res.status(503).json({
+        ok: false,
+        message:
+          "Az új megerősítő levél küldése ebben a környezetben nem érhető el. Jelentkezz be a jelszavaddal, és a rendszer megjeleníti a megerősítő linket.",
+        verificationEnabled: true,
+      });
+      return;
+    }
 
     if (!config.emailVerificationEnabled) {
       res.json(response);
@@ -1115,12 +1159,16 @@ router.post(
         username: userRow.username,
       });
 
-      if (config.nodeEnv !== "production") {
+      if (shouldExposeDirectAuthLink(result.sent)) {
         response.devVerificationUrl = result.verificationUrl;
         response.expiresAt = result.expiresAt;
       }
+
+      response.message = result.sent
+        ? "Ha találtunk nem megerősített fiókot ehhez az azonosítóhoz, kiküldtük az új megerősítő levelet."
+        : "Ha találtunk nem megerősített fiókot ehhez az azonosítóhoz, létrehoztunk egy közvetlen megerősítő linket.";
     } catch (error) {
-      console.error("Az uj megerosito e-mail kuldese sikertelen.", error);
+      console.error("Az új megerősítő e-mail küldése sikertelen.", error);
     }
 
     res.json(response);

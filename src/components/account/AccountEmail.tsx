@@ -13,6 +13,7 @@ export function AccountEmail() {
   }, [user]);
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [verificationLink, setVerificationLink] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
@@ -24,6 +25,7 @@ export function AccountEmail() {
     if (isSubmitting) return;
 
     setMsg(null);
+    setVerificationLink(null);
     setIsSubmitting(true);
     const res = await changeAccountEmail(email, password);
     setIsSubmitting(false);
@@ -38,6 +40,7 @@ export function AccountEmail() {
         res.message ??
         "E-mail cím frissítve. Ellenőrizd a beérkező leveleidet a megerősítéshez.",
     });
+    setVerificationLink(res.devVerificationUrl ?? null);
     setPassword("");
   }
 
@@ -45,6 +48,7 @@ export function AccountEmail() {
     if (isResending) return;
 
     setMsg(null);
+    setVerificationLink(null);
     setIsResending(true);
     const result = await requestEmailVerification(currentEmail);
     setIsResending(false);
@@ -56,6 +60,7 @@ export function AccountEmail() {
           ? "Új megerősítő levelet küldtünk."
           : "Nem sikerült új megerősítő levelet küldeni."),
     });
+    setVerificationLink(result.ok ? (result.devVerificationUrl ?? null) : null);
   }
 
   return (
@@ -108,6 +113,14 @@ export function AccountEmail() {
           {isSubmitting ? "Mentés..." : "E-mail mentése"}
         </Btn>
         {msg ? <Msg ok={msg.ok}>{msg.text}</Msg> : null}
+        {verificationLink ? (
+          <Msg ok>
+            Közvetlen megerősítő link:{" "}
+            <a href={verificationLink} target="_blank" rel="noreferrer">
+              {verificationLink}
+            </a>
+          </Msg>
+        ) : null}
       </form>
     </Box>
   );

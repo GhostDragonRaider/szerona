@@ -169,6 +169,9 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [devResetUrl, setDevResetUrl] = useState<string | null>(null);
+  const [devVerificationUrl, setDevVerificationUrl] = useState<string | null>(
+    null,
+  );
   const [canResendVerification, setCanResendVerification] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -178,6 +181,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       setError(null);
       setSuccess(null);
       setDevResetUrl(null);
+      setDevVerificationUrl(null);
       setCanResendVerification(false);
     }
   }, [open]);
@@ -188,6 +192,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
 
     setError(null);
     setSuccess(null);
+    setDevVerificationUrl(null);
     setCanResendVerification(false);
     setIsSubmitting(true);
     const res = await login(username, password);
@@ -195,8 +200,14 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
 
     if (!res.ok) {
       setError(res.message ?? "Hiba tortent.");
+      setDevVerificationUrl(res.devVerificationUrl ?? null);
       setCanResendVerification(
-        Boolean(res.message?.toLowerCase().includes("nincs megerositve")),
+        Boolean(
+          !res.devVerificationUrl &&
+            (res.verificationRequired ||
+              res.message?.toLowerCase().includes("nincs megerősítve") ||
+              res.message?.toLowerCase().includes("nincs megerositve")),
+        ),
       );
       return;
     }
@@ -214,6 +225,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
 
     setError(null);
     setSuccess(null);
+    setDevVerificationUrl(null);
     setIsSubmitting(true);
     const result = await requestEmailVerification(username.trim());
     setIsSubmitting(false);
@@ -227,6 +239,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       result.message ??
         "Ha talaltunk nem megerositett fiokot, uj megerosito levelet kuldtunk.",
     );
+    setDevVerificationUrl(result.devVerificationUrl ?? null);
   }
 
   async function handleForgotSubmit(e: FormEvent) {
@@ -310,6 +323,14 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
             </Field>
             {error ? <Err>{error}</Err> : null}
             {success ? <Ok>{success}</Ok> : null}
+            {devVerificationUrl ? (
+              <Ok>
+                Megerősítő link:{" "}
+                <a href={devVerificationUrl} target="_blank" rel="noreferrer">
+                  {devVerificationUrl}
+                </a>
+              </Ok>
+            ) : null}
             {canResendVerification ? (
               <TextButton
                 type="button"
@@ -325,6 +346,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
                 setMode("forgot");
                 setError(null);
                 setSuccess(null);
+                setDevVerificationUrl(null);
                 setCanResendVerification(false);
               }}
             >
@@ -369,6 +391,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
                 setError(null);
                 setSuccess(null);
                 setDevResetUrl(null);
+                setDevVerificationUrl(null);
               }}
             >
               Vissza a belepeshez

@@ -38,6 +38,9 @@ interface ApiAuthResponse {
 interface ApiMessageResponse {
   ok: boolean;
   message?: string;
+  devVerificationUrl?: string;
+  devResetUrl?: string;
+  expiresAt?: string;
 }
 
 interface ApiRegisterResponse {
@@ -69,6 +72,7 @@ interface AuthActionResult {
   ok: boolean;
   message?: string;
   user?: ApiAuthUser;
+  verificationRequired?: boolean;
   devResetToken?: string;
   devResetUrl?: string;
   devVerificationUrl?: string;
@@ -247,9 +251,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { ok: true, user: response.user };
       } catch (error) {
+        const apiError = error as ApiError | null;
+        const payload = apiError?.payload as
+          | {
+              verificationRequired?: boolean;
+              devVerificationUrl?: string;
+              expiresAt?: string;
+            }
+          | undefined;
+
         return {
           ok: false,
           message: getErrorMessage(error, "Nem sikerult a belepes."),
+          verificationRequired: payload?.verificationRequired,
+          devVerificationUrl: payload?.devVerificationUrl,
+          expiresAt: payload?.expiresAt,
         };
       }
     },
@@ -421,6 +437,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ok: true,
           message: response.message ?? "E-mail cim frissitve.",
           user: response.user,
+          devVerificationUrl: response.devVerificationUrl,
+          expiresAt: response.expiresAt,
         };
       } catch (error) {
         return {
