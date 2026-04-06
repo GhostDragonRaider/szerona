@@ -35,6 +35,23 @@ async function requireAuth(req, res, next) {
       return;
     }
 
+    if (config.relaxedAuthGuards) {
+      req.auth = payload;
+      req.authToken = token;
+      req.authSession = {
+        id: sessionId,
+        user_type: payload?.isAdminAccount ? "admin" : "user",
+        user_id: String(payload?.sub ?? ""),
+        expires_at:
+          typeof payload?.exp === "number"
+            ? new Date(payload.exp * 1000).toISOString()
+            : null,
+        revoked: false,
+      };
+      next();
+      return;
+    }
+
     const session = await getSessionById(sessionId);
     if (!session || session.revoked || Date.parse(session.expires_at) <= Date.now()) {
       res.status(401).json({
