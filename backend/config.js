@@ -105,6 +105,7 @@ const config = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   isVercel,
   databaseUrl,
+  relaxedAuthGuards: isVercel && !databaseUrl,
   databaseSsl:
     process.env.DATABASE_SSL === "true" ||
     process.env.NODE_ENV === "production",
@@ -200,6 +201,12 @@ if (config.nodeEnv === "production" && config.isVercel) {
   if (!jwtSecretFromEnv) {
     console.warn(
       "Vercel fallback mód: nincs JWT_SECRET, ideiglenes deploy-szintű titok kerül használatra.",
+    );
+  }
+
+  if (config.relaxedAuthGuards) {
+    console.warn(
+      "Vercel fallback mód: az auth rate limit és brute-force védelem lazított, amíg nincs tartós adatbázis.",
     );
   }
 }

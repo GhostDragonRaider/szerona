@@ -72,7 +72,19 @@ const {
 
 const router = express.Router();
 
-const loginLimiter = rateLimit({
+function passthroughLimiter(req, res, next) {
+  next();
+}
+
+function createAuthLimiter(options) {
+  if (config.relaxedAuthGuards) {
+    return passthroughLimiter;
+  }
+
+  return rateLimit(options);
+}
+
+const loginLimiter = createAuthLimiter({
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,
@@ -83,7 +95,7 @@ const loginLimiter = rateLimit({
   },
 });
 
-const registerLimiter = rateLimit({
+const registerLimiter = createAuthLimiter({
   windowMs: 60 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -94,7 +106,7 @@ const registerLimiter = rateLimit({
   },
 });
 
-const forgotPasswordLimiter = rateLimit({
+const forgotPasswordLimiter = createAuthLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -105,7 +117,7 @@ const forgotPasswordLimiter = rateLimit({
   },
 });
 
-const verificationLimiter = rateLimit({
+const verificationLimiter = createAuthLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -182,6 +194,10 @@ async function sendUserVerificationEmail({
 }
 
 async function ensureLoginAllowed(identifier, req) {
+  if (config.relaxedAuthGuards) {
+    return;
+  }
+
   const now = new Date().toISOString();
   for (const key of getThrottleKeys(identifier, req)) {
     await ensureNotLocked(key.scope, key.throttleKey, now);
@@ -189,6 +205,10 @@ async function ensureLoginAllowed(identifier, req) {
 }
 
 async function recordLoginFailure(identifier, req) {
+  if (config.relaxedAuthGuards) {
+    return;
+  }
+
   const now = new Date().toISOString();
   for (const key of getThrottleKeys(identifier, req)) {
     await registerFailure(key.scope, key.throttleKey, now);
@@ -196,6 +216,10 @@ async function recordLoginFailure(identifier, req) {
 }
 
 async function clearLoginFailures(identifier, req) {
+  if (config.relaxedAuthGuards) {
+    return;
+  }
+
   for (const key of getThrottleKeys(identifier, req)) {
     await clearFailures(key.scope, key.throttleKey);
   }
