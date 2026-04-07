@@ -19,6 +19,7 @@ const Section = styled.section`
     padding-top: calc(
       56px + env(safe-area-inset-top, 0px) + ${({ theme }) => theme.space.md}
     );
+    padding-bottom: ${({ theme }) => theme.space.lg};
   }
   @media (min-width: ${({ theme }) => theme.breakpoints.sm}) and (max-width: ${({
       theme,
@@ -49,6 +50,9 @@ const HeroLead = styled.div`
   align-items: center;
   gap: ${({ theme }) => theme.space.lg};
   width: 100%;
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    gap: ${({ theme }) => theme.space.md};
+  }
 `;
 
 const HeroBlock = styled.div`
@@ -57,12 +61,18 @@ const HeroBlock = styled.div`
   align-items: center;
   gap: ${({ theme }) => theme.space.xl};
   width: 100%;
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    gap: ${({ theme }) => theme.space.lg};
+  }
 `;
 
 /** Logó a h1-ben – lejjebb tolva a fejléc alatt, teljes szélesség + középre */
 const HeroBrandHeading = styled.h1`
   margin: ${({ theme }) => theme.space.md} 0 0;
   padding: 0;
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    margin-top: ${({ theme }) => theme.space.sm};
+  }
   @media (min-width: ${({ theme }) => theme.breakpoints.lg}) {
     margin-top: ${({ theme }) => theme.space.xxl};
   }
@@ -82,6 +92,11 @@ const Sub = styled.p`
   font-size: 1.15rem;
   color: ${({ theme }) => theme.colors.textMuted};
   line-height: 1.6;
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    max-width: 20rem;
+    font-size: 1.02rem;
+    line-height: 1.5;
+  }
 `;
 
 const CtaRow = styled.div`
@@ -89,6 +104,9 @@ const CtaRow = styled.div`
   flex-wrap: wrap;
   justify-content: center;
   gap: ${({ theme }) => theme.space.md};
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    gap: ${({ theme }) => theme.space.sm};
+  }
 `;
 
 /** Közös CTA: Kollekció / Belépés jellegű szegélyes, felületi gomb */
@@ -108,6 +126,10 @@ const CtaBase = styled(Link)`
   color: ${({ theme }) => theme.colors.text};
   background: transparent;
   transition: none;
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    padding: ${({ theme }) => theme.space.sm} ${({ theme }) => theme.space.lg};
+    font-size: 0.88rem;
+  }
   @media (hover: hover) {
     &:hover {
       transition: border-color 0.2s, color 0.2s, background 0.2s;

@@ -55,6 +55,9 @@ const MarkImg = styled.img<{ $variant: "bar" | "hero" | "footer" }>`
         : `
     width: min(100%, clamp(320px, 72vw, 520px));
     height: auto;
+    @media (max-width: ${theme.breakpoints.sm}) {
+      width: min(100%, 280px);
+    }
   `}
 `;
 
@@ -82,6 +85,10 @@ const Wordmark = styled.span<{ $variant: "bar" | "hero" | "footer" }>`
         : `
     font-size: clamp(1.15rem, 3.8vw, 1.55rem);
     letter-spacing: 0.48em;
+    @media (max-width: ${theme.breakpoints.sm}) {
+      font-size: 1rem;
+      letter-spacing: 0.36em;
+    }
   `}
 `;
 
@@ -114,6 +121,10 @@ const MicroTagline = styled.span<{ $variant: "bar" | "hero" | "footer" }>`
     font-size: clamp(0.78rem, 1.85vw, 0.92rem);
     max-width: min(100%, 22rem);
     letter-spacing: 0.04em;
+    @media (max-width: ${theme.breakpoints.sm}) {
+      font-size: 0.74rem;
+      max-width: 18rem;
+    }
   `}
 `;
 
@@ -126,6 +137,9 @@ const HeroLogoLink = styled(Link)`
   margin-inline: auto;
   text-decoration: none;
   color: inherit;
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    max-width: min(100%, 320px);
+  }
 `;
 
 interface LogoProps {
