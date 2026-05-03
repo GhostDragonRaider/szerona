@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /admin
 
-Sitemap: https://serona.hu/sitemap.xml
+Sitemap: https://www.serona.hu/sitemap.xml

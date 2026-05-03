@@ -7,6 +7,7 @@ const {
   updateProduct,
 } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
+const { saveProductImageUpload } = require("../services/productImages");
 const { asyncHandler } = require("../utils/http");
 const { normalizeBoolean, validateProductInput } = require("../utils/validation");
 
@@ -44,6 +45,25 @@ router.get(
     res.json({
       ok: true,
       products,
+    });
+  }),
+);
+
+router.post(
+  "/images",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    const imageUrl = saveProductImageUpload({
+      filename: req.body?.filename,
+      mimeType: req.body?.mimeType,
+      data: req.body?.data,
+    });
+
+    res.status(201).json({
+      ok: true,
+      imageUrl,
     });
   }),
 );

@@ -3,7 +3,6 @@
  * Reszponzív: mobilon lapfülek egy sorban, md felett oldalsáv.
  */
 import styled from "@emotion/styled";
-import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AccountBilling } from "../components/account/AccountBilling";
 import { AccountEmail } from "../components/account/AccountEmail";
@@ -126,33 +125,12 @@ const ACCOUNT_TABS: AccountTab[] = [
 
 export function AccountPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState<AccountTab>("profile");
-
-  useEffect(() => {
-    const requestedTab = searchParams.get("tab");
-    if (
-      requestedTab &&
-      ACCOUNT_TABS.includes(requestedTab as AccountTab) &&
-      requestedTab !== tab
-    ) {
-      setTab(requestedTab as AccountTab);
-      return;
-    }
-
-    if (requestedTab && !ACCOUNT_TABS.includes(requestedTab as AccountTab)) {
-      if (tab !== "profile") {
-        setTab("profile");
-      }
-      return;
-    }
-
-    if (!requestedTab && tab !== "profile") {
-      setTab("profile");
-    }
-  }, [searchParams, tab]);
+  const requestedTab = searchParams.get("tab");
+  const tab = ACCOUNT_TABS.includes(requestedTab as AccountTab)
+    ? (requestedTab as AccountTab)
+    : "profile";
 
   function changeTab(nextTab: AccountTab) {
-    setTab(nextTab);
     if (nextTab === "profile") {
       setSearchParams({}, { replace: true });
       return;

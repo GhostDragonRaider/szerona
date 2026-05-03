@@ -46,6 +46,7 @@ export interface BillingAddress {
 }
 
 export type PaymentProvider = "stripe" | "barion" | "simplepay" | "custom";
+export type PaymentGatewayMode = "tokenized" | "redirect";
 
 export type SavedPaymentMethodStatus = "active" | "pending_setup" | "revoked";
 
@@ -71,9 +72,16 @@ export interface SavedPaymentMethod {
 
 export interface PaymentGatewayConfig {
   provider: PaymentProvider | "none";
-  mode: "tokenized";
+  mode: PaymentGatewayMode;
   readyForClientSetup: boolean;
   supportsSavedCards: boolean;
+}
+
+export interface PaymentSession {
+  provider: PaymentProvider;
+  paymentId: string;
+  status: string;
+  redirectUrl: string;
 }
 
 export interface User {
@@ -88,7 +96,7 @@ export interface User {
   emailVerified?: boolean;
 }
 
-export type PaymentMethod = "cod" | "card" | "transfer";
+export type PaymentMethod = "cod" | "card";
 
 export type ShippingMethodId =
   | "gls_home"
@@ -102,6 +110,8 @@ export interface ShippingMethodOption {
   description: string;
   price: number;
   addressHint: string;
+  allowedPaymentMethods?: PaymentMethod[];
+  codNote?: string;
 }
 
 export interface PaymentMethodOption {
@@ -134,14 +144,9 @@ export interface Coupon extends CouponSummary {
 
 export interface CommerceOptions {
   paymentMethods: PaymentMethodOption[];
+  paymentGateway?: PaymentGatewayConfig;
   shippingMethods: ShippingMethodOption[];
   coupons: CouponSummary[];
-  transfer: {
-    bankAccountHolder: string;
-    bankAccountNumber: string | null;
-    bankName: string | null;
-    paymentDueDays: number;
-  };
 }
 
 export type OrderStatus =
@@ -184,6 +189,20 @@ export interface Order {
   total: number;
   createdAt: string;
   updatedAt: string;
+  payment?: {
+    provider: PaymentProvider | null;
+    paymentId: string | null;
+    requestId: string | null;
+    status: string | null;
+    startedAt: string | null;
+    completedAt: string | null;
+  };
+  invoice?: {
+    provider: "szamlazzhu" | null;
+    status: string | null;
+    number: string | null;
+    createdAt: string | null;
+  };
   shipping: BillingAddress;
   billing: BillingAddress;
   items: OrderItem[];

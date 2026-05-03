@@ -19,6 +19,41 @@ function uniqueOrigins(origins) {
   return [...new Set(origins.filter(Boolean))];
 }
 
+function parseBoolean(value, defaultValue = false) {
+  const normalized = emptyStringToNull(value);
+  if (normalized === null) {
+    return defaultValue;
+  }
+
+  return ["1", "true", "yes", "on"].includes(String(normalized).toLowerCase());
+}
+
+function parseList(value, fallback = []) {
+  const normalized = emptyStringToNull(value);
+  if (!normalized) {
+    return fallback;
+  }
+
+  return normalized
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function extractEmailAddress(value) {
+  const normalized = emptyStringToNull(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const match = normalized.match(/<([^>]+)>/);
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+
+  return normalized.includes("@") ? normalized : null;
+}
+
 function emptyStringToNull(value) {
   if (typeof value !== "string") {
     return value ?? null;
@@ -74,12 +109,53 @@ const sqlitePath =
     : sqlitePathFromEnv
       ? path.resolve(__dirname, sqlitePathFromEnv)
       : path.join(__dirname, "data", "serona.sqlite");
+const invoiceDirFromEnv = emptyStringToNull(process.env.INVOICE_DIR);
+const invoiceDir = invoiceDirFromEnv
+  ? path.resolve(__dirname, invoiceDirFromEnv)
+  : path.join(path.dirname(sqlitePath), "invoices");
 const paymentProviderFromEnv = emptyStringToNull(process.env.PAYMENT_PROVIDER);
 const paymentProvider =
   paymentProviderFromEnv && ["stripe", "barion", "simplepay", "custom"].includes(paymentProviderFromEnv)
     ? paymentProviderFromEnv
     : "none";
 const paymentPublicKey = emptyStringToNull(process.env.PAYMENT_PUBLIC_KEY);
+const defaultContactEmail =
+  extractEmailAddress(process.env.EMAIL_REPLY_TO) ??
+  extractEmailAddress(process.env.EMAIL_FROM_ADDRESS);
+const barionPosKey = emptyStringToNull(process.env.BARION_POS_KEY);
+const barionSandbox = parseBoolean(process.env.BARION_SANDBOX, false);
+const barionApiBaseUrl =
+  emptyStringToNull(process.env.BARION_API_BASE_URL) ??
+  (barionSandbox
+    ? "https://api.test.barion.com/v2"
+    : "https://api.barion.com/v2");
+const barionPayee = emptyStringToNull(process.env.BARION_PAYEE);
+const barionLocale =
+  emptyStringToNull(process.env.BARION_LOCALE) ?? "hu-HU";
+const barionCurrency =
+  emptyStringToNull(process.env.BARION_CURRENCY) ?? "HUF";
+const barionFundingSources = parseList(process.env.BARION_FUNDING_SOURCES, [
+  "All",
+]);
+const mailerSendApiKey = emptyStringToNull(process.env.MAILERSEND_API_KEY);
+const resendApiKey = emptyStringToNull(process.env.RESEND_API_KEY);
+const emailProviderFromEnv = emptyStringToNull(process.env.EMAIL_PROVIDER);
+const emailProvider =
+  emailProviderFromEnv && ["resend", "mailersend"].includes(emailProviderFromEnv)
+    ? emailProviderFromEnv
+    : mailerSendApiKey
+      ? "mailersend"
+      : "resend";
+const szamlazzAgentKey = emptyStringToNull(process.env.SZAMLAZZ_HU_AGENT_KEY);
+const szamlazzApiBaseUrl =
+  emptyStringToNull(process.env.SZAMLAZZ_HU_API_BASE_URL) ??
+  "https://www.szamlazz.hu/szamla/";
+const szamlazzInvoicePrefix = emptyStringToNull(
+  process.env.SZAMLAZZ_HU_PREFIX,
+);
+const invoiceVatRate = Number.parseFloat(
+  process.env.SZAMLAZZ_HU_VAT_RATE ?? "27",
+);
 const vercelDeploymentUrl = buildHttpsUrl(process.env.VERCEL_URL);
 const vercelBranchUrl = buildHttpsUrl(process.env.VERCEL_BRANCH_URL);
 const vercelProductionUrl = buildHttpsUrl(
@@ -92,6 +168,12 @@ const frontendBaseUrl =
   vercelProductionUrl ??
   vercelDeploymentUrl ??
   DEFAULT_CORS_ORIGINS[0];
+const publicAppUrl = frontendBaseUrl;
+const backendBaseUrl =
+  emptyStringToNull(process.env.BACKEND_BASE_URL) ??
+  (process.env.NODE_ENV === "development"
+    ? `http://localhost:${Number.isFinite(port) ? port : 3000}`
+    : publicAppUrl);
 const corsOrigins = uniqueOrigins([
   ...(process.env.CORS_ORIGINS ?? DEFAULT_CORS_ORIGINS.join(","))
     .split(",")
@@ -113,6 +195,7 @@ const config = {
     process.env.DATABASE_SSL === "true" ||
     process.env.NODE_ENV === "production",
   sqlitePath,
+  invoiceDir,
   jwtSecret:
     jwtSecretFromEnv ??
     (isVercel
@@ -121,9 +204,13 @@ const config = {
   accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN ?? "15m",
   jwtIssuer: process.env.JWT_ISSUER ?? "serona-api",
   jwtAudience: process.env.JWT_AUDIENCE ?? "serona-web",
-  resendApiKey: emptyStringToNull(process.env.RESEND_API_KEY),
+  emailProvider,
+  resendApiKey,
   resendApiBaseUrl:
     process.env.RESEND_API_BASE_URL ?? "https://api.resend.com",
+  mailerSendApiKey,
+  mailerSendApiBaseUrl:
+    process.env.MAILERSEND_API_BASE_URL ?? "https://api.mailersend.com/v1",
   emailFromAddress:
     process.env.EMAIL_FROM_ADDRESS ?? "Serona <onboarding@resend.dev>",
   emailReplyTo: emptyStringToNull(process.env.EMAIL_REPLY_TO),
@@ -139,7 +226,9 @@ const config = {
       ? bcryptRounds
       : 12,
   corsOrigins,
-  emailVerificationEnabled: Boolean(emptyStringToNull(process.env.RESEND_API_KEY)),
+  emailVerificationEnabled:
+    (emailProvider === "mailersend" && Boolean(mailerSendApiKey)) ||
+    (emailProvider === "resend" && Boolean(resendApiKey)),
   frontendBaseUrl,
   refreshTokenDays:
     Number.isFinite(refreshTokenDays) && refreshTokenDays >= 1
@@ -181,14 +270,83 @@ const config = {
   glsClientNumber: emptyStringToNull(process.env.GLS_CLIENT_NUMBER),
   glsUsername: emptyStringToNull(process.env.GLS_USERNAME),
   glsPassword: emptyStringToNull(process.env.GLS_PASSWORD),
+  publicAppUrl,
+  backendBaseUrl,
   paymentProvider,
+  paymentMode: paymentProvider === "barion" ? "redirect" : "tokenized",
   paymentPublicKey,
+  barionSandbox,
+  barionApiBaseUrl,
+  barionPosKey,
+  barionPayee,
+  barionLocale,
+  barionCurrency,
+  barionFundingSources,
+  barionRedirectUrl: `${publicAppUrl.replace(/\/+$/, "")}/checkout`,
+  barionCallbackUrl: `${backendBaseUrl.replace(/\/+$/, "")}/api/payments/barion/callback`,
+  barionEnabled:
+    paymentProvider === "barion" &&
+    Boolean(barionPosKey) &&
+    Boolean(barionPayee),
+  szamlazzApiBaseUrl,
+  szamlazzAgentKey,
+  szamlazzInvoicePrefix,
+  szamlazzEInvoice: parseBoolean(process.env.SZAMLAZZ_HU_E_INVOICE, false),
+  szamlazzDownloadPdf: parseBoolean(
+    process.env.SZAMLAZZ_HU_DOWNLOAD_PDF,
+    false,
+  ),
+  szamlazzEnabled: Boolean(szamlazzAgentKey),
+  invoiceVatRate:
+    Number.isFinite(invoiceVatRate) && invoiceVatRate >= 0
+      ? invoiceVatRate
+      : 27,
 };
 
+function applyPaymentIntegrationConfig(env = process.env) {
+  const nextPaymentProviderFromEnv = emptyStringToNull(env.PAYMENT_PROVIDER);
+  const nextPaymentProvider =
+    nextPaymentProviderFromEnv &&
+    ["stripe", "barion", "simplepay", "custom"].includes(nextPaymentProviderFromEnv)
+      ? nextPaymentProviderFromEnv
+      : "none";
+  const nextBarionSandbox = parseBoolean(env.BARION_SANDBOX, false);
+  const nextBarionApiBaseUrl =
+    emptyStringToNull(env.BARION_API_BASE_URL) ??
+    (nextBarionSandbox
+      ? "https://api.test.barion.com/v2"
+      : "https://api.barion.com/v2");
+  const nextBarionPosKey = emptyStringToNull(env.BARION_POS_KEY);
+  const nextBarionPayee = emptyStringToNull(env.BARION_PAYEE);
+
+  config.paymentProvider = nextPaymentProvider;
+  config.paymentMode = nextPaymentProvider === "barion" ? "redirect" : "tokenized";
+  config.paymentPublicKey = emptyStringToNull(env.PAYMENT_PUBLIC_KEY);
+  config.barionSandbox = nextBarionSandbox;
+  config.barionApiBaseUrl = nextBarionApiBaseUrl;
+  config.barionPosKey = nextBarionPosKey;
+  config.barionPayee = nextBarionPayee;
+  config.barionLocale = emptyStringToNull(env.BARION_LOCALE) ?? "hu-HU";
+  config.barionCurrency = emptyStringToNull(env.BARION_CURRENCY) ?? "HUF";
+  config.barionFundingSources = parseList(env.BARION_FUNDING_SOURCES, ["All"]);
+  config.barionEnabled =
+    nextPaymentProvider === "barion" &&
+    Boolean(nextBarionPosKey) &&
+    Boolean(nextBarionPayee);
+  config.szamlazzApiBaseUrl =
+    emptyStringToNull(env.SZAMLAZZ_HU_API_BASE_URL) ??
+    "https://www.szamlazz.hu/szamla/";
+  config.szamlazzAgentKey = emptyStringToNull(env.SZAMLAZZ_HU_AGENT_KEY);
+  config.szamlazzInvoicePrefix = emptyStringToNull(env.SZAMLAZZ_HU_PREFIX);
+  config.szamlazzEInvoice = parseBoolean(env.SZAMLAZZ_HU_E_INVOICE, false);
+  config.szamlazzDownloadPdf = parseBoolean(
+    env.SZAMLAZZ_HU_DOWNLOAD_PDF,
+    false,
+  );
+  config.szamlazzEnabled = Boolean(config.szamlazzAgentKey);
+}
+
 if (config.nodeEnv === "production") {
-  if (!config.databaseUrl && !config.isVercel) {
-    throw new Error("Hiányzó DATABASE_URL beállítás production módban.");
-  }
   if (!jwtSecretFromEnv && !config.isVercel) {
     throw new Error("Hiányzó JWT_SECRET beállítás production módban.");
   }
@@ -214,4 +372,10 @@ if (config.nodeEnv === "production" && config.isVercel) {
   }
 }
 
-module.exports = { config };
+if (config.nodeEnv === "production" && !config.isVercel && !config.databaseUrl) {
+  console.warn(
+    `Production SQLite mód: nincs DATABASE_URL, a backend a helyi SQLite adatbázist használja (${config.sqlitePath}).`,
+  );
+}
+
+module.exports = { applyPaymentIntegrationConfig, config };

@@ -5,6 +5,7 @@ const SHIPPING_METHODS = [
     description: "Házhozszállítás GLS futárral 1-2 munkanapon belül.",
     price: 1990,
     addressHint: "Add meg a teljes kézbesítési címedet.",
+    allowedPaymentMethods: ["cod", "card"],
   },
   {
     id: "gls_parcel_locker",
@@ -13,6 +14,8 @@ const SHIPPING_METHODS = [
     price: 1290,
     addressHint:
       "Az utca, házszám mezőbe a választott GLS automata nevét vagy címét add meg.",
+    allowedPaymentMethods: ["cod", "card"],
+    codNote: "GLS automatánál az utánvét bankkártyával fizethető.",
   },
   {
     id: "mpl_home",
@@ -20,6 +23,7 @@ const SHIPPING_METHODS = [
     description: "Házhozszállítás MPL futárszolgálattal.",
     price: 1890,
     addressHint: "Add meg a teljes kézbesítési címedet.",
+    allowedPaymentMethods: ["cod", "card"],
   },
   {
     id: "mpl_post_office",
@@ -28,6 +32,9 @@ const SHIPPING_METHODS = [
     price: 990,
     addressHint:
       "Az utca, házszám mezőbe a választott posta nevét vagy címét add meg.",
+    allowedPaymentMethods: ["cod", "card"],
+    codNote:
+      "MPL postán maradó csomagnál az utánvét a postahelyen fizethető.",
   },
 ];
 
@@ -69,13 +76,7 @@ const PAYMENT_METHODS = [
     id: "card",
     label: "Bankkártya",
     description:
-      "Mentett, tokenizált bankkártyás fizetés. A tényleges gateway-terhelés külön integrációval kapcsolható be.",
-  },
-  {
-    id: "transfer",
-    label: "Előre utalás",
-    description:
-      "Rendelés után díjbekérő e-mailt küldünk a szállítási költséggel növelten.",
+      "Online bankkártya (Barion): a rendelés után a Barion fizetési oldalára irányítunk. Egyéb szolgáltató esetén tokenizált mentett kártya is használható.",
   },
 ];
 
@@ -88,6 +89,16 @@ function getShippingMethodById(id) {
 
 function getPaymentMethodById(id) {
   return PAYMENT_METHODS.find((method) => method.id === id) ?? null;
+}
+
+function isPaymentMethodAllowedForShipping(paymentMethodId, shippingMethodId) {
+  const paymentMethod = getPaymentMethodById(paymentMethodId);
+  const shippingMethod = getShippingMethodById(shippingMethodId);
+  if (!paymentMethod || !shippingMethod) {
+    return false;
+  }
+
+  return (shippingMethod.allowedPaymentMethods ?? []).includes(paymentMethod.id);
 }
 
 function normalizeCouponCode(code) {
@@ -231,6 +242,7 @@ module.exports = {
   calculateCouponDiscount,
   getPaymentMethodById,
   getShippingMethodById,
+  isPaymentMethodAllowedForShipping,
   getCouponByCode,
   listCouponSummaries,
   normalizeCouponCode,

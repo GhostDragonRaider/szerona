@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { useProducts } from "../../context/ProductsContext";
 import { CATEGORY_LABELS } from "../../data/categoryLabels";
 import type { Product, ProductCategory } from "../../data/types";
+import { apiFetch } from "../../lib/api";
 
 const Hint = styled.p`
   margin: 0;
@@ -251,6 +252,35 @@ const FullSpan = styled.div`
   grid-column: 1 / -1;
 `;
 
+const UploadGrid = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.space.sm};
+  margin-top: ${({ theme }) => theme.space.sm};
+  @media (min-width: ${({ theme }) => theme.breakpoints.sm}) {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+`;
+
+const UploadOption = styled.button<{ $selected?: boolean }>`
+  padding: ${({ theme }) => theme.space.sm};
+  border-radius: ${({ theme }) => theme.radii.md};
+  border: 1px solid
+    ${({ theme, $selected }) => ($selected ? theme.colors.accent : theme.colors.border)};
+  background: ${({ theme }) => theme.colors.surfaceElevated};
+  color: ${({ theme }) => theme.colors.text};
+  cursor: pointer;
+  text-align: left;
+`;
+
+const UploadThumb = styled.img`
+  width: 100%;
+  height: 92px;
+  object-fit: contain;
+  background: ${({ theme }) => theme.colors.productImageBg};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  margin-bottom: ${({ theme }) => theme.space.xs};
+`;
+
 const FormActions = styled.div`
   grid-column: 1 / -1;
   display: flex;
@@ -313,6 +343,7 @@ export function AdminProducts() {
   const [formStock, setFormStock] = useState("");
   const [formCat, setFormCat] = useState<ProductCategory>("polo");
   const [formImage, setFormImage] = useState("");
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [formDesc, setFormDesc] = useState("");
 
   const filtered = useMemo(() => {
@@ -345,6 +376,7 @@ export function AdminProducts() {
     setFormStock(String(p.stockQuantity));
     setFormCat(p.category);
     setFormImage(p.image);
+    setUploadedImages(p.image ? [p.image] : []);
     setFormDesc(p.description);
   }
 
@@ -355,7 +387,57 @@ export function AdminProducts() {
     setFormStock("10");
     setFormCat("polo");
     setFormImage("/pictures/serona-01-tshirt-black.png");
+    setUploadedImages([]);
     setFormDesc("");
+  }
+
+  async function handleImageUpload(files: FileList | null) {
+    if (!files?.length) return;
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    try {
+      const nextImages: string[] = [];
+      for (const file of Array.from(files)) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result ?? ""));
+          reader.onerror = () => reject(new Error("Nem sikerült beolvasni a képet."));
+          reader.readAsDataURL(file);
+        });
+        const [, base64 = ""] = dataUrl.split(",");
+        const response = await apiFetch<{ ok: boolean; imageUrl: string }>(
+          "/api/products/images",
+          {
+            method: "POST",
+            auth: true,
+            json: {
+              filename: file.name,
+              mimeType: file.type,
+              data: base64,
+            },
+          },
+        );
+        nextImages.push(response.imageUrl);
+      }
+
+      setUploadedImages((current) => [...nextImages, ...current]);
+      if (nextImages[0]) {
+        setFormImage(nextImages[0]);
+      }
+      setMessage({ ok: true, text: "Kép feltöltve, válaszd ki az előnézeti képet." });
+    } catch (uploadError) {
+      setMessage({
+        ok: false,
+        text:
+          uploadError instanceof Error
+            ? uploadError.message
+            : "Nem sikerült feltölteni a képet.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function handleSave(e: FormEvent) {
@@ -602,7 +684,7 @@ export function AdminProducts() {
               </Select>
             </Field>
             <Field>
-              Kép URL (pl. /pictures/…)
+              Előnézeti kép URL
               <Input
                 value={formImage}
                 onChange={(e) => setFormImage(e.target.value)}
@@ -610,6 +692,33 @@ export function AdminProducts() {
                 required
               />
             </Field>
+            <FullSpan>
+              <Field>
+                Képek feltöltése helyi gépről
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  onChange={(event) => void handleImageUpload(event.target.files)}
+                  disabled={isSubmitting}
+                />
+              </Field>
+              {uploadedImages.length > 0 ? (
+                <UploadGrid>
+                  {uploadedImages.map((imageUrl) => (
+                    <UploadOption
+                      key={imageUrl}
+                      type="button"
+                      $selected={formImage === imageUrl}
+                      onClick={() => setFormImage(imageUrl)}
+                    >
+                      <UploadThumb src={imageUrl} alt="" />
+                      {formImage === imageUrl ? "Előnézeti kép" : "Beállítás előnézetnek"}
+                    </UploadOption>
+                  ))}
+                </UploadGrid>
+              ) : null}
+            </FullSpan>
             <FullSpan>
               <Field>
                 Leírás

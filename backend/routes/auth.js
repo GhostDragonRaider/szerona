@@ -157,7 +157,7 @@ function buildVerificationUrl(token) {
 }
 
 function shouldExposeDirectAuthLink(emailSent) {
-  return config.nodeEnv !== "production" || !emailSent;
+  return false;
 }
 
 async function sendUserVerificationEmail({
@@ -414,7 +414,7 @@ router.post(
       ok: true,
       message: verification.sent
         ? "Sikeres regisztráció. Kiküldtük a fiókmegerősítő e-mailt."
-        : "Sikeres regisztráció. A fiók megerősítését a megjelenített linken tudod befejezni.",
+        : "Sikeres regisztráció, de a megerősítő e-mail kiküldése nem sikerült. Kérj új megerősítő levelet a belépési ablakból.",
       emailVerification: verification,
     });
   }),
@@ -493,20 +493,6 @@ router.post(
         verificationRequired: true,
         email: userRow.email,
       };
-
-      if (!canSendEmail()) {
-        const result = await sendUserVerificationEmail({
-          userId: userRow.id,
-          email: userRow.email,
-          username: userRow.username,
-          sendEmail: false,
-        });
-
-        response.message =
-          "Az e-mail címed még nincs megerősítve. Ebben a környezetben a megerősítő linket közvetlenül itt tudod megnyitni.";
-        response.devVerificationUrl = result.verificationUrl;
-        response.expiresAt = result.expiresAt;
-      }
 
       res.status(403).json(response);
       return;
@@ -966,12 +952,7 @@ router.post(
       console.error("A jelszo-visszaallitasi e-mail kuldese sikertelen.", error);
     }
 
-    if (config.nodeEnv !== "production") {
-      response.devResetToken = token;
-      response.devResetUrl = resetUrl;
-      response.devTargetEmail = email;
-      response.expiresAt = expiresAt;
-    }
+    response.expiresAt = expiresAt;
 
     res.json(response);
   }),
@@ -1168,7 +1149,7 @@ router.post(
 
       response.message = result.sent
         ? "Ha találtunk nem megerősített fiókot ehhez az azonosítóhoz, kiküldtük az új megerősítő levelet."
-        : "Ha találtunk nem megerősített fiókot ehhez az azonosítóhoz, létrehoztunk egy közvetlen megerősítő linket.";
+        : "Ha találtunk nem megerősített fiókot ehhez az azonosítóhoz, megpróbáltuk kiküldeni az új megerősítő levelet.";
     } catch (error) {
       console.error("Az új megerősítő e-mail küldése sikertelen.", error);
     }

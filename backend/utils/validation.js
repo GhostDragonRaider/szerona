@@ -174,6 +174,10 @@ function validateProductInput(product) {
 }
 
 function validatePaymentMethod(method) {
+  if (method === "transfer") {
+    return "Az előre utalás jelenleg nem választható fizetési mód.";
+  }
+
   if (!PAYMENT_METHOD_IDS.has(method)) {
     return "Ervenytelen fizetesi mod.";
   }

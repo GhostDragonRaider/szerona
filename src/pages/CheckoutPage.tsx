@@ -3,7 +3,7 @@
  */
 import styled from "@emotion/styled";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Box,
   Field,
@@ -24,6 +24,7 @@ import type {
   Order,
   OrderQuote,
   PaymentGatewayConfig,
+  PaymentSession,
   PaymentMethod,
   SavedPaymentMethod,
   ShippingMethodId,
@@ -265,6 +266,7 @@ interface OrderResponse {
   ok: boolean;
   message?: string;
   order: Order;
+  paymentSession?: PaymentSession;
   emailNotice?: {
     ok: boolean;
     message: string;
@@ -285,6 +287,15 @@ interface PaymentMethodsResponse {
   ok: boolean;
   paymentMethods: SavedPaymentMethod[];
   gateway: PaymentGatewayConfig;
+}
+
+interface BarionFinalizeResponse {
+  ok: boolean;
+  message?: string;
+  order: Order;
+  paymentState: {
+    status: string;
+  };
 }
 
 const PAYMENT_PROVIDER_LABELS: Record<
@@ -317,11 +328,96 @@ function normalizeSearchText(value: string) {
     .trim();
 }
 
+interface Coordinates {
+  lat: number;
+  lon: number;
+}
+
+const CITY_COORDINATES: Record<string, Coordinates> = {
+  ajka: { lat: 47.101, lon: 17.558 },
+  baja: { lat: 46.183, lon: 18.954 },
+  bekescsaba: { lat: 46.683, lon: 21.087 },
+  budaors: { lat: 47.461, lon: 18.958 },
+  budapest: { lat: 47.4979, lon: 19.0402 },
+  cegled: { lat: 47.173, lon: 19.799 },
+  debrecen: { lat: 47.5316, lon: 21.6273 },
+  dunaujvaros: { lat: 46.9619, lon: 18.9355 },
+  eger: { lat: 47.9025, lon: 20.3772 },
+  erd: { lat: 47.391, lon: 18.904 },
+  esztergom: { lat: 47.7928, lon: 18.7415 },
+  godollo: { lat: 47.6, lon: 19.3667 },
+  gyongyos: { lat: 47.7826, lon: 19.928 },
+  gyor: { lat: 47.6875, lon: 17.6504 },
+  hajduszoboszlo: { lat: 47.443, lon: 21.391 },
+  hatvan: { lat: 47.6667, lon: 19.6833 },
+  hodmezovasarhely: { lat: 46.4167, lon: 20.3333 },
+  kaposvar: { lat: 46.3594, lon: 17.7968 },
+  kazincbarcika: { lat: 48.25, lon: 20.6333 },
+  kecskemet: { lat: 46.9062, lon: 19.6897 },
+  kiskunfelegyhaza: { lat: 46.711, lon: 19.85 },
+  kiskunhalas: { lat: 46.431, lon: 19.487 },
+  komarom: { lat: 47.743, lon: 18.12 },
+  mako: { lat: 46.2167, lon: 20.4833 },
+  miskolc: { lat: 48.1035, lon: 20.7784 },
+  nagykanizsa: { lat: 46.459, lon: 16.989 },
+  nyiregyhaza: { lat: 47.9554, lon: 21.7167 },
+  oroshaza: { lat: 46.5667, lon: 20.6667 },
+  papa: { lat: 47.3306, lon: 17.467 },
+  pecs: { lat: 46.0727, lon: 18.2323 },
+  salgotarjan: { lat: 48.105, lon: 19.809 },
+  sarvar: { lat: 47.253, lon: 16.936 },
+  siofok: { lat: 46.904, lon: 18.058 },
+  sopron: { lat: 47.6817, lon: 16.5845 },
+  szeged: { lat: 46.253, lon: 20.1414 },
+  szekesfehervar: { lat: 47.186, lon: 18.4221 },
+  szekszard: { lat: 46.347, lon: 18.706 },
+  szentendre: { lat: 47.669, lon: 19.076 },
+  szigetszentmiklos: { lat: 47.343, lon: 19.043 },
+  szolnok: { lat: 47.1747, lon: 20.1763 },
+  szombathely: { lat: 47.2307, lon: 16.6218 },
+  tatabanya: { lat: 47.5862, lon: 18.3948 },
+  vac: { lat: 47.78, lon: 19.13 },
+  veszprem: { lat: 47.0933, lon: 17.9115 },
+  zalaegerszeg: { lat: 46.8417, lon: 16.8416 },
+};
+
+function normalizeZipSearch(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function getCityCoordinates(city: string) {
+  return CITY_COORDINATES[normalizeSearchText(city)] ?? null;
+}
+
+function getDistanceKm(from: Coordinates, to: Coordinates) {
+  const earthRadiusKm = 6371;
+  const lat1 = (from.lat * Math.PI) / 180;
+  const lat2 = (to.lat * Math.PI) / 180;
+  const deltaLat = ((to.lat - from.lat) * Math.PI) / 180;
+  const deltaLon = ((to.lon - from.lon) * Math.PI) / 180;
+  const a =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function buildPickupSearchText(point: {
+  zip: string;
+  city: string;
+  label: string;
+  address: string;
+}) {
+  return normalizeSearchText(
+    `${point.zip} ${point.city} ${point.label} ${point.address}`,
+  );
+}
+
 function isPickupPointMethod(method: ShippingMethodId) {
   return method === "gls_parcel_locker" || method === "mpl_post_office";
 }
 
 export function CheckoutPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { lines, totalPrice, refreshCart } = useCart();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -364,6 +460,11 @@ export function CheckoutPage() {
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(true);
   const [selectedSavedPaymentMethodId, setSelectedSavedPaymentMethodId] =
     useState("");
+  const barionOrderId = searchParams.get("barionOrderId")?.trim() ?? "";
+  const barionPaymentId =
+    searchParams.get("paymentId")?.trim() ??
+    searchParams.get("PaymentId")?.trim() ??
+    "";
 
   useEffect(() => {
     if (!user) return;
@@ -398,9 +499,72 @@ export function CheckoutPage() {
       zip: previous.zip || baseShipping.zip,
       country: previous.country || baseShipping.country,
     }));
-    setPickupZipQuery(baseShipping.zip);
-    setPickupCityQuery(baseShipping.city);
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !barionOrderId || !barionPaymentId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function finalizeBarionPayment() {
+      setIsSubmitting(true);
+      try {
+        const response = await apiFetch<BarionFinalizeResponse>(
+          "/api/payments/barion/finalize",
+          {
+            method: "POST",
+            auth: true,
+            json: {
+              orderId: barionOrderId,
+              paymentId: barionPaymentId,
+            },
+          },
+        );
+
+        if (cancelled) return;
+
+        setOrder(response.order);
+        setMessage({
+          ok: response.order.status !== "cancelled",
+          text:
+            response.order.status === "confirmed"
+              ? "A Barion fizetés sikeres volt, a rendelést megerősítettük."
+              : response.order.status === "cancelled"
+                ? "A Barion fizetés nem sikerült vagy megszakadt, ezért a rendelést töröltük."
+                : response.message ?? `Barion állapot: ${response.paymentState.status}`,
+        });
+        await refreshCart();
+      } catch (error) {
+        if (cancelled) return;
+        setMessage({
+          ok: false,
+          text:
+            error instanceof Error
+              ? error.message
+              : "Nem sikerült lezárni a Barion fizetés státuszát.",
+        });
+      } finally {
+        if (!cancelled) {
+          setIsSubmitting(false);
+          setSearchParams({}, { replace: true });
+        }
+      }
+    }
+
+    void finalizeBarionPayment();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    barionOrderId,
+    barionPaymentId,
+    refreshCart,
+    setSearchParams,
+    user,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -411,6 +575,9 @@ export function CheckoutPage() {
         if (!cancelled) {
           setShippingOptions(response.commerce.shippingMethods);
           setAvailableCoupons(response.commerce.coupons);
+          if (response.commerce.paymentGateway) {
+            setPaymentGateway(response.commerce.paymentGateway);
+          }
           setShippingMethod((previous) =>
             response.commerce.shippingMethods.some((method) => method.id === previous)
               ? previous
@@ -515,6 +682,13 @@ export function CheckoutPage() {
     [savedPaymentMethods, selectedSavedPaymentMethodId],
   );
 
+  const availablePaymentMethods = useMemo(
+    () =>
+      selectedShippingOption?.allowedPaymentMethods ??
+      (["cod", "card"] satisfies PaymentMethod[]),
+    [selectedShippingOption],
+  );
+
   const pickupPointsForMethod = useMemo(
     () =>
       isPickupPointMethod(shippingMethod)
@@ -523,17 +697,40 @@ export function CheckoutPage() {
     [shippingMethod],
   );
 
+  const pickupSearchOrigin = useMemo(
+    () => getCityCoordinates(pickupCityQuery),
+    [pickupCityQuery],
+  );
+
   const filteredPickupPoints = useMemo(() => {
-    const zipQuery = pickupZipQuery.trim();
-    const cityQuery = normalizeSearchText(pickupCityQuery);
+    const zipQuery = normalizeZipSearch(pickupZipQuery);
+    const textQuery = normalizeSearchText(
+      [pickupZipQuery, pickupCityQuery].filter(Boolean).join(" "),
+    );
+
+    if (pickupSearchOrigin && !zipQuery) {
+      return [...pickupPointsForMethod].sort((a, b) => {
+        const pointA = getCityCoordinates(a.city);
+        const pointB = getCityCoordinates(b.city);
+        if (!pointA || !pointB) return 0;
+        return (
+          getDistanceKm(pickupSearchOrigin, pointA) -
+          getDistanceKm(pickupSearchOrigin, pointB)
+        );
+      });
+    }
+
+    if (!zipQuery && !textQuery) {
+      return pickupPointsForMethod;
+    }
 
     return pickupPointsForMethod.filter((point) => {
-      const zipMatches = !zipQuery || point.zip.includes(zipQuery);
-      const cityMatches =
-        !cityQuery || normalizeSearchText(point.city).includes(cityQuery);
-      return zipMatches && cityMatches;
+      const haystack = buildPickupSearchText(point);
+      const zipMatches = Boolean(zipQuery) && point.zip.includes(zipQuery);
+      const textMatches = Boolean(textQuery) && haystack.includes(textQuery);
+      return zipMatches || textMatches;
     });
-  }, [pickupCityQuery, pickupPointsForMethod, pickupZipQuery]);
+  }, [pickupCityQuery, pickupPointsForMethod, pickupSearchOrigin, pickupZipQuery]);
 
   const selectedPickupPoint = useMemo(
     () =>
@@ -580,6 +777,12 @@ export function CheckoutPage() {
   useEffect(() => {
     void requestQuote(appliedCouponCode, false);
   }, [appliedCouponCode, shippingMethod, totalPrice, user]);
+
+  useEffect(() => {
+    if (!availablePaymentMethods.includes(paymentMethod)) {
+      setPaymentMethod(availablePaymentMethods[0] ?? "card");
+    }
+  }, [availablePaymentMethods, paymentMethod]);
 
   useEffect(() => {
     if (!isPickupPointMethod(shippingMethod)) {
@@ -634,12 +837,12 @@ export function CheckoutPage() {
 
     if (!currentlyPickupMode) {
       setHomeDeliveryDraft(shipping);
-      setPickupZipQuery(shipping.zip);
-      setPickupCityQuery(shipping.city);
     }
 
     if (pickupMode) {
       setPickupPointId("");
+      setPickupZipQuery("");
+      setPickupCityQuery("");
       setShipping((previous) => ({
         ...previous,
         zip: "",
@@ -698,7 +901,30 @@ export function CheckoutPage() {
   function handlePaymentNext(e: FormEvent) {
     e.preventDefault();
 
-    if (paymentMethod === "card") {
+    if (!availablePaymentMethods.includes(paymentMethod)) {
+      setMessage({
+        ok: false,
+        text: "A választott fizetési mód ehhez a szállítási módhoz nem használható.",
+      });
+      return;
+    }
+
+    if (paymentMethod === "card" && !paymentGateway.readyForClientSetup) {
+      setMessage({
+        ok: false,
+        text:
+          paymentGateway.provider === "barion"
+            ? "A Barion fizetés még nincs készre konfigurálva ezen a környezeten."
+            : "A bankkártyás fizetés még nincs teljesen bekötve ezen a környezeten.",
+      });
+      return;
+    }
+
+    if (
+      paymentMethod === "card" &&
+      paymentGateway.mode === "tokenized" &&
+      paymentGateway.supportsSavedCards
+    ) {
       if (!selectedSavedPaymentMethodId) {
         setMessage({
           ok: false,
@@ -730,11 +956,18 @@ export function CheckoutPage() {
           contactPhone,
           paymentMethod,
           savedPaymentMethodId:
-            paymentMethod === "card" ? selectedSavedPaymentMethodId : null,
+            paymentMethod === "card" && paymentGateway.mode === "tokenized"
+              ? selectedSavedPaymentMethodId
+              : null,
           shippingMethod,
           couponCode: appliedCouponCode,
         },
       });
+
+      if (response.paymentSession?.redirectUrl) {
+        window.location.href = response.paymentSession.redirectUrl;
+        return;
+      }
 
       setOrder(response.order);
       setMessage({
@@ -774,17 +1007,22 @@ export function CheckoutPage() {
   if (order) {
     return (
       <Page>
-        <PageTitle>Rendelés sikeresen rögzítve</PageTitle>
+        <PageTitle>
+          {order.status === "cancelled"
+            ? "A fizetés nem sikerült"
+            : "Rendelés sikeresen rögzítve"}
+        </PageTitle>
         <Box>
           <Title>{order.id}</Title>
           <Lead>
-            A rendelést a backend létrehozta, a státuszát a fiókodban és az
-            adminfelületen is követni tudod.
+            {order.status === "cancelled"
+              ? "A rendelést lezártuk, mert az online fizetés nem futott végig sikeresen."
+              : "A rendelést a backend létrehozta, a státuszát a fiókodban és az adminfelületen is követni tudod."}
           </Lead>
-          {order.paymentMethod === "transfer" ? (
+          {order.paymentMethod === "card" && order.status !== "cancelled" ? (
             <Lead>
-              Az előre utaláshoz szükséges további információkat a megadott
-              e-mail-címen küldtük vagy küldjük.
+              Az online fizetés státuszát a Barion visszajelzése alapján
+              szinkronizáltuk.
             </Lead>
           ) : null}
           {message ? (
@@ -835,8 +1073,10 @@ export function CheckoutPage() {
 
   const paymentLabels: Record<PaymentMethod, string> = {
     cod: "Utánvét (készpénz átvételkor)",
-    card: "Bankkártya (mentett, tokenizált fizetési mód)",
-    transfer: "Átutalás (közleményben rendelésszám)",
+    card:
+      paymentGateway.provider === "barion"
+        ? "Online bankkártya (Barion)"
+        : "Bankkártya (mentett, tokenizált fizetési mód)",
   };
 
   return (
@@ -963,16 +1203,29 @@ export function CheckoutPage() {
                   onChange={(e) => setPickupPointId(e.target.value)}
                 >
                   <option value="">Válassz átvételi pontot</option>
-                  {filteredPickupPoints.map((point) => (
-                    <option key={point.id} value={point.id}>
-                      {point.zip} {point.city} - {point.label}
-                    </option>
-                  ))}
+                  {filteredPickupPoints.map((point) => {
+                    const pointCoordinates = getCityCoordinates(point.city);
+                    const distance =
+                      pickupSearchOrigin && pointCoordinates
+                        ? Math.round(
+                            getDistanceKm(pickupSearchOrigin, pointCoordinates),
+                          )
+                        : null;
+
+                    return (
+                      <option key={point.id} value={point.id}>
+                        {point.zip} {point.city} - {point.label}
+                        {distance !== null ? ` (${distance} km)` : ""}
+                      </option>
+                    );
+                  })}
                 </Select>
               </Field>
               <HelperText>
                 {filteredPickupPoints.length > 0
-                  ? `${filteredPickupPoints.length} átvételi pont található a jelenlegi szűrésre.`
+                  ? pickupSearchOrigin && !normalizeZipSearch(pickupZipQuery)
+                    ? `${filteredPickupPoints.length} átvételi pont távolság szerint rendezve.`
+                    : `${filteredPickupPoints.length} átvételi pont található a jelenlegi szűrésre.`
                   : "Nincs találat a megadott szűrésre."}
               </HelperText>
               {selectedPickupPoint ? (
@@ -1062,50 +1315,71 @@ export function CheckoutPage() {
           <Title>Fizetési mód</Title>
           <Lead>Válassz, hogyan szeretnél fizetni.</Lead>
           <RadioList>
-            <RadioLabel $checked={paymentMethod === "cod"}>
-              <input
-                type="radio"
-                name="pay"
-                checked={paymentMethod === "cod"}
-                onChange={() => setPaymentMethod("cod")}
-              />
-              <span>Utánvét</span>
-            </RadioLabel>
-            <RadioLabel $checked={paymentMethod === "card"}>
-              <input
-                type="radio"
-                name="pay"
-                checked={paymentMethod === "card"}
-                onChange={() => setPaymentMethod("card")}
-              />
-              <span>Bankkártya (mentett, tokenizált fizetési mód)</span>
-            </RadioLabel>
-            <RadioLabel $checked={paymentMethod === "transfer"}>
-              <input
-                type="radio"
-                name="pay"
-                checked={paymentMethod === "transfer"}
-                onChange={() => setPaymentMethod("transfer")}
-              />
-              <span>Előre utalás</span>
-            </RadioLabel>
+            {availablePaymentMethods.includes("cod") ? (
+              <RadioLabel $checked={paymentMethod === "cod"}>
+                <input
+                  type="radio"
+                  name="pay"
+                  checked={paymentMethod === "cod"}
+                  onChange={() => setPaymentMethod("cod")}
+                />
+                <RadioCopy>
+                  <strong>Utánvét</strong>
+                  <RadioMeta>
+                    {selectedShippingOption?.codNote ??
+                      "Fizetés átvételkor a futárnál vagy az átvevőhelyen."}
+                  </RadioMeta>
+                </RadioCopy>
+              </RadioLabel>
+            ) : null}
+            {availablePaymentMethods.includes("card") ? (
+              <RadioLabel $checked={paymentMethod === "card"}>
+                <input
+                  type="radio"
+                  name="pay"
+                  checked={paymentMethod === "card"}
+                  onChange={() => setPaymentMethod("card")}
+                />
+                <RadioCopy>
+                  <strong>
+                    {paymentGateway.provider === "barion"
+                      ? "Online bankkártya (Barion)"
+                      : "Bankkártya (mentett, tokenizált fizetési mód)"}
+                  </strong>
+                  <RadioMeta>
+                    Online fizetés a rendelés leadása után, biztonságos fizetési
+                    oldalon.
+                  </RadioMeta>
+                </RadioCopy>
+              </RadioLabel>
+            ) : null}
           </RadioList>
 
           {paymentMethod === "card" ? (
             <CardBlock>
-              <SubTitle>Mentett bankkártyák</SubTitle>
-              <Lead css={{ marginBottom: "1rem" }}>
-                A Serona itt már nem kér be nyers kártyaadatot. A checkout a
-                fiókban elmentett, tokenizált fizetési módokkal számol.
-              </Lead>
+              <SubTitle>
+                {paymentGateway.mode === "redirect"
+                  ? "Online fizetés"
+                  : "Mentett bankkártyák"}
+              </SubTitle>
               <HelperText>
                 Aktív provider:{" "}
                 {PAYMENT_PROVIDER_LABELS[paymentGateway.provider]}.{" "}
-                {paymentGateway.readyForClientSetup
-                  ? "A kliensoldali tokenizáló bekötéshez már van alapkész konfiguráció."
-                  : "A teljes kliensoldali tokenizáló widget még külön bekötést igényel."}
+                {paymentGateway.mode === "redirect"
+                  ? paymentGateway.readyForClientSetup
+                    ? "A rendelés után a Barion biztonságos fizetési oldalára irányítunk át."
+                    : "Az online bankkártyás fizetés még nincs bekötve ezen a környezeten."
+                  : paymentGateway.readyForClientSetup
+                    ? "A kliensoldali tokenizáló bekötéshez már van alapkész konfiguráció."
+                    : "A teljes kliensoldali tokenizáló widget még külön bekötést igényel."}
               </HelperText>
-              {isLoadingPaymentMethods ? (
+              {paymentGateway.mode === "redirect" ? (
+                <Lead>
+                  A kártyaadatokat nem a Serona kéri be. A rendelés rögzítése
+                  után a Barion saját oldalán tudod biztonságosan befejezni a
+                  fizetést.
+                </Lead>
+              ) : isLoadingPaymentMethods ? (
                 <Lead>Mentett fizetési módok betöltése...</Lead>
               ) : savedPaymentMethods.length > 0 ? (
                 <RadioList>
@@ -1147,7 +1421,7 @@ export function CheckoutPage() {
                   részen rögzíts egyet.
                 </Lead>
               )}
-              {selectedSavedPaymentMethod ? (
+              {paymentGateway.mode === "tokenized" && selectedSavedPaymentMethod ? (
                 <HelperText>
                   Kiválasztva: {selectedSavedPaymentMethod.brand} ••••{" "}
                   {selectedSavedPaymentMethod.last4} ·{" "}
@@ -1322,7 +1596,11 @@ export function CheckoutPage() {
               }}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Rendelés..." : "Rendelés leadása"}
+              {isSubmitting
+                ? "Feldolgozás..."
+                : paymentMethod === "card" && paymentGateway.mode === "redirect"
+                  ? "Tovább a Barion fizetéshez"
+                  : "Rendelés leadása"}
             </SolidBtn>
           </Row>
         </Box>

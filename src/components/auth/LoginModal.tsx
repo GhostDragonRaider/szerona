@@ -10,7 +10,7 @@ import { useAuth } from "../../context/AuthContext";
 const Backdrop = styled.div<{ open: boolean }>`
   position: fixed;
   inset: 0;
-  z-index: 300;
+  z-index: 1400;
   background: ${({ theme }) => theme.colors.overlay};
   display: ${({ open }) => (open ? "flex" : "none")};
   align-items: flex-start;
@@ -46,47 +46,6 @@ const Title = styled.h2`
   margin: 0 0 ${({ theme }) => theme.space.md};
   font-family: ${({ theme }) => theme.fonts.display};
   font-size: 1.75rem;
-`;
-
-const TipBubble = styled.div`
-  margin: 0 0 ${({ theme }) => theme.space.lg};
-  padding: ${({ theme }) => theme.space.md};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  background: ${({ theme }) => theme.colors.accentSoft};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  font-size: 0.82rem;
-  line-height: 1.45;
-  color: ${({ theme }) => theme.colors.textMuted};
-`;
-
-const TipLabel = styled.div`
-  font-weight: 700;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.accent};
-  margin-bottom: ${({ theme }) => theme.space.xs};
-`;
-
-const TipList = styled.ul`
-  margin: 0;
-  padding-left: 1.1rem;
-`;
-
-const TipItem = styled.li`
-  margin-bottom: 0.25rem;
-  &:last-of-type {
-    margin-bottom: 0;
-  }
-  code {
-    font-family: ui-monospace, monospace;
-    font-size: 0.88em;
-    padding: 0.1em 0.35em;
-    border-radius: 4px;
-    background: ${({ theme }) => theme.colors.surfaceElevated};
-    color: ${({ theme }) => theme.colors.text};
-  }
 `;
 
 const Field = styled.label`
@@ -168,10 +127,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
   const [forgotEmail, setForgotEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [devResetUrl, setDevResetUrl] = useState<string | null>(null);
-  const [devVerificationUrl, setDevVerificationUrl] = useState<string | null>(
-    null,
-  );
   const [canResendVerification, setCanResendVerification] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -180,8 +135,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       setMode("login");
       setError(null);
       setSuccess(null);
-      setDevResetUrl(null);
-      setDevVerificationUrl(null);
       setCanResendVerification(false);
     }
   }, [open]);
@@ -192,7 +145,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
 
     setError(null);
     setSuccess(null);
-    setDevVerificationUrl(null);
     setCanResendVerification(false);
     setIsSubmitting(true);
     const res = await login(username, password);
@@ -200,13 +152,11 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
 
     if (!res.ok) {
       setError(res.message ?? "Hiba tortent.");
-      setDevVerificationUrl(res.devVerificationUrl ?? null);
       setCanResendVerification(
         Boolean(
-          !res.devVerificationUrl &&
-            (res.verificationRequired ||
-              res.message?.toLowerCase().includes("nincs megerősítve") ||
-              res.message?.toLowerCase().includes("nincs megerositve")),
+          res.verificationRequired ||
+            res.message?.toLowerCase().includes("nincs megerősítve") ||
+            res.message?.toLowerCase().includes("nincs megerositve"),
         ),
       );
       return;
@@ -225,7 +175,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
 
     setError(null);
     setSuccess(null);
-    setDevVerificationUrl(null);
     setIsSubmitting(true);
     const result = await requestEmailVerification(username.trim());
     setIsSubmitting(false);
@@ -239,7 +188,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       result.message ??
         "Ha talaltunk nem megerositett fiokot, uj megerosito levelet kuldtunk.",
     );
-    setDevVerificationUrl(result.devVerificationUrl ?? null);
   }
 
   async function handleForgotSubmit(e: FormEvent) {
@@ -248,7 +196,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
 
     setError(null);
     setSuccess(null);
-    setDevResetUrl(null);
     setIsSubmitting(true);
     const result = await requestPasswordReset(forgotEmail);
     setIsSubmitting(false);
@@ -262,7 +209,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       result.message ??
         "Ha talaltunk ilyen fiokot, kuldtunk egy visszaallitasi linket.",
     );
-    setDevResetUrl(result.devResetUrl ?? null);
   }
 
   if (!open) return null;
@@ -278,26 +224,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
         <Title id="login-title">
           {mode === "login" ? "Belepes" : "Elfelejtett jelszo"}
         </Title>
-        {mode === "login" ? (
-          <TipBubble role="note" aria-label="Belepesi tippek">
-            <TipLabel>Tipp</TipLabel>
-            <TipList>
-              <TipItem>
-                Admin felulet: <code>admin</code> / <code>aktualis admin jelszo</code>
-              </TipItem>
-              <TipItem>
-                Vasarloi fiok: a sajat regisztralt felhasznaloddal tudsz belepni
-              </TipItem>
-            </TipList>
-          </TipBubble>
-        ) : (
-          <TipBubble role="note" aria-label="Visszaallitas tipp">
-            <TipLabel>Info</TipLabel>
-            Add meg az e-mail cimet, amihez a fiok tartozik. Ha talalunk ilyen
-            fiokot, visszaallitasi linket kuldunk a megadott cimre.
-          </TipBubble>
-        )}
-
         {mode === "login" ? (
           <form onSubmit={handleLoginSubmit}>
             <Field>
@@ -323,14 +249,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
             </Field>
             {error ? <Err>{error}</Err> : null}
             {success ? <Ok>{success}</Ok> : null}
-            {devVerificationUrl ? (
-              <Ok>
-                Megerősítő link:{" "}
-                <a href={devVerificationUrl} target="_blank" rel="noreferrer">
-                  {devVerificationUrl}
-                </a>
-              </Ok>
-            ) : null}
             {canResendVerification ? (
               <TextButton
                 type="button"
@@ -346,7 +264,6 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
                 setMode("forgot");
                 setError(null);
                 setSuccess(null);
-                setDevVerificationUrl(null);
                 setCanResendVerification(false);
               }}
             >
@@ -376,22 +293,12 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
             </Field>
             {error ? <Err>{error}</Err> : null}
             {success ? <Ok>{success}</Ok> : null}
-            {devResetUrl ? (
-              <Ok>
-                Teszt link:{" "}
-                <a href={devResetUrl} target="_blank" rel="noreferrer">
-                  {devResetUrl}
-                </a>
-              </Ok>
-            ) : null}
             <TextButton
               type="button"
               onClick={() => {
                 setMode("login");
                 setError(null);
                 setSuccess(null);
-                setDevResetUrl(null);
-                setDevVerificationUrl(null);
               }}
             >
               Vissza a belepeshez

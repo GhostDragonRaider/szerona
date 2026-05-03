@@ -9,7 +9,7 @@ import { useCart } from "../../context/CartContext";
 const Overlay = styled.div<{ open: boolean }>`
   position: fixed;
   inset: 0;
-  z-index: 150;
+  z-index: 1250;
   background: ${({ theme }) => theme.colors.overlay};
   opacity: ${({ open }) => (open ? 1 : 0)};
   pointer-events: ${({ open }) => (open ? "auto" : "none")};
@@ -20,7 +20,7 @@ const Panel = styled.aside<{ open: boolean }>`
   position: fixed;
   top: 0;
   right: 0;
-  z-index: 151;
+  z-index: 1251;
   width: min(100%, 400px);
   height: 100%;
   max-height: 100dvh;

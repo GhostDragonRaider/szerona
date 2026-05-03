@@ -453,9 +453,10 @@ interface HealthResponse {
   ok: boolean;
   message: string;
   ido: string;
-  database: string | null;
   uptimeSeconds?: number;
   startedAt?: string;
+  backendVersion?: string;
+  frontendVersion?: string;
 }
 
 type ServerHealthState = {
@@ -464,9 +465,10 @@ type ServerHealthState = {
   checkedAt: string | null;
   responseTimeMs: number | null;
   serverTime: string | null;
-  database: string | null;
   uptimeSeconds: number | null;
   startedAt: string | null;
+  backendVersion: string | null;
+  frontendVersion: string | null;
 };
 
 interface CouponFormState {
@@ -603,9 +605,10 @@ export function AdminOverview() {
     checkedAt: null,
     responseTimeMs: null,
     serverTime: null,
-    database: null,
     uptimeSeconds: null,
     startedAt: null,
+    backendVersion: null,
+    frontendVersion: null,
   });
 
   useEffect(() => {
@@ -666,13 +669,13 @@ export function AdminOverview() {
           checkedAt: new Date().toISOString(),
           responseTimeMs: Math.round(performance.now() - startedAt),
           serverTime: response.ido ?? null,
-          database:
-            typeof response.database === "string" ? response.database : null,
           uptimeSeconds:
             typeof response.uptimeSeconds === "number"
               ? response.uptimeSeconds
               : null,
           startedAt: response.startedAt ?? null,
+          backendVersion: response.backendVersion ?? "1.0",
+          frontendVersion: response.frontendVersion ?? "1.0",
         });
       } catch (healthError) {
         if (cancelled) return;
@@ -687,6 +690,8 @@ export function AdminOverview() {
           checkedAt: new Date().toISOString(),
           responseTimeMs: null,
           serverTime: null,
+          backendVersion: null,
+          frontendVersion: null,
         }));
       }
     }
@@ -909,9 +914,6 @@ export function AdminOverview() {
               : "nincs adat"}
           </Meta>
           <Meta>
-            Adatbázis: {serverHealth.database ?? "ismeretlen"}
-          </Meta>
-          <Meta>
             Szerveridő:{" "}
             {serverHealth.serverTime
               ? new Date(serverHealth.serverTime).toLocaleString("hu-HU")
@@ -927,6 +929,12 @@ export function AdminOverview() {
             Uptime: {formatUptime(serverHealth.uptimeSeconds)}
           </Meta>
         </Card>
+        <Card>
+          <Label>Verziók</Label>
+          <Value>1.0</Value>
+          <Meta>Backend: {serverHealth.backendVersion ?? "1.0"}</Meta>
+          <Meta>Frontend: {serverHealth.frontendVersion ?? "1.0"}</Meta>
+        </Card>
         {summary ? (
           <>
             <Card>
@@ -940,10 +948,6 @@ export function AdminOverview() {
             <Card>
               <Label>Teljesített bevétel</Label>
               <Value>{formatPrice(summary.totals.deliveredRevenue)}</Value>
-            </Card>
-            <Card>
-              <Label>Várakozó utalások</Label>
-              <Value>{formatPrice(summary.totals.pendingTransferTotal)}</Value>
             </Card>
           </>
         ) : null}

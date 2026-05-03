@@ -2,6 +2,7 @@ import styled from "@emotion/styled";
 import { useEffect, useState } from "react";
 import { formatPrice, PAYMENT_METHOD_LABELS, SHIPPING_METHOD_LABELS } from "../../data/commerce";
 import { apiFetch } from "../../lib/api";
+import { loadAuthSession } from "../../lib/authSession";
 import type { Order, OrderStatus } from "../../data/types";
 
 const Wrapper = styled.div`
@@ -71,6 +72,42 @@ const Item = styled.li`
   }
 `;
 
+const ActionRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.space.sm};
+  align-items: center;
+  margin: ${({ theme }) => theme.space.sm} 0;
+`;
+
+const SmallInput = styled.input`
+  min-height: 40px;
+  padding: ${({ theme }) => theme.space.xs} ${({ theme }) => theme.space.sm};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const Btn = styled.button`
+  min-height: 40px;
+  padding: ${({ theme }) => theme.space.xs} ${({ theme }) => theme.space.md};
+  border: none;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: ${({ theme }) => theme.colors.text};
+  color: ${({ theme }) => theme.colors.bg};
+  font-weight: 700;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+`;
+
+const Feedback = styled.p<{ $ok?: boolean }>`
+  color: ${({ theme, $ok }) => ($ok ? theme.colors.success : theme.colors.accent)};
+`;
+
 const statusLabels: Record<OrderStatus, string> = {
   pending: "Függőben",
   confirmed: "Jóváhagyva",
@@ -85,9 +122,39 @@ interface OrdersResponse {
   orders: Order[];
 }
 
+async function openInvoicePdf(invoiceNumber: string) {
+  const session = loadAuthSession();
+  if (!session?.token) {
+    throw new Error("Hiányzó admin munkamenet.");
+  }
+
+  const response = await fetch(
+    `/api/admin/invoices/${encodeURIComponent(invoiceNumber)}/pdf`,
+    {
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.message ?? "A számla PDF megnyitása sikertelen.");
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 export function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({});
+  const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +189,47 @@ export function AdminOrders() {
     };
   }, []);
 
+  async function saveTrackingNumber(order: Order) {
+    const trackingNumber = (trackingInputs[order.id] ?? order.trackingNumber ?? "").trim();
+    if (!trackingNumber) {
+      setMessage({ ok: false, text: "Adj meg GLS vagy MPL csomagszámot." });
+      return;
+    }
+
+    setBusyOrderId(order.id);
+    setMessage(null);
+    try {
+      const response = await apiFetch<{ ok: boolean; message?: string; order: Order }>(
+        `/api/orders/${order.id}/fulfillment-event`,
+        {
+          method: "POST",
+          auth: true,
+          json: {
+            event: "shipped",
+            trackingNumber,
+          },
+        },
+      );
+      setOrders((current) =>
+        current.map((entry) => (entry.id === order.id ? response.order : entry)),
+      );
+      setMessage({
+        ok: true,
+        text: response.message ?? "A csomagszám rögzítve.",
+      });
+    } catch (error) {
+      setMessage({
+        ok: false,
+        text:
+          error instanceof Error
+            ? error.message
+            : "Nem sikerült rögzíteni a csomagszámot.",
+      });
+    } finally {
+      setBusyOrderId(null);
+    }
+  }
+
   return (
     <Wrapper>
       <Title>Rendelések</Title>
@@ -130,6 +238,7 @@ export function AdminOrders() {
         valós fulfillment- vagy futáradatok beérkezése után frissül.
       </Lead>
       {isLoading ? <Lead>Rendelések betöltése...</Lead> : null}
+      {message ? <Feedback $ok={message.ok}>{message.text}</Feedback> : null}
       {!isLoading && orders.length === 0 ? (
         <Lead>Még nincs rendelése a webshopnak.</Lead>
       ) : null}
@@ -163,6 +272,56 @@ export function AdminOrders() {
               Csomagszám a feladási adatok beérkezése után jelenik meg.
             </div>
           )}
+          <ActionRow>
+            <SmallInput
+              value={trackingInputs[order.id] ?? order.trackingNumber ?? ""}
+              onChange={(event) =>
+                setTrackingInputs((current) => ({
+                  ...current,
+                  [order.id]: event.target.value,
+                }))
+              }
+              placeholder="GLS / MPL csomagszám"
+            />
+            <Btn
+              type="button"
+              disabled={busyOrderId === order.id}
+              onClick={() => void saveTrackingNumber(order)}
+            >
+              Csomagszám mentése
+            </Btn>
+          </ActionRow>
+          <div css={{ marginBottom: "0.5rem" }}>
+            Számla kiküldése:{" "}
+            <strong>
+              {order.invoice?.number && order.invoice.status === "success"
+                ? "sikeres"
+                : order.invoice?.number
+                  ? order.invoice.status ?? "folyamatban"
+                  : "még nincs számla"}
+            </strong>
+            {order.invoice?.number ? ` · ${order.invoice.number}` : ""}
+          </div>
+          {order.invoice?.number ? (
+            <Btn
+              type="button"
+              onClick={async () => {
+                try {
+                  await openInvoicePdf(order.invoice?.number ?? "");
+                } catch (error) {
+                  setMessage({
+                    ok: false,
+                    text:
+                      error instanceof Error
+                        ? error.message
+                        : "Nem sikerült megnyitni a számlát.",
+                  });
+                }
+              }}
+            >
+              Számla megtekintése
+            </Btn>
+          ) : null}
           <div css={{ marginBottom: "0.5rem" }}>
             Szállítási mód: {SHIPPING_METHOD_LABELS[order.shippingMethod]} ·{" "}
             {formatPrice(order.shippingPrice)}

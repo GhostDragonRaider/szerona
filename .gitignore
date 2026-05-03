@@ -6,7 +6,9 @@ backend/data/*.sqlite
 backend/data/*.sqlite-shm
 backend/data/*.sqlite-wal
 dist/
+test-results/
 *.local
 
 # A backend most mar a projekt resze.
 .vercel
+végrehajtandók/

@@ -171,6 +171,20 @@ function normalizeOrderRow(row) {
     total: Number(row.total ?? row.subtotal ?? 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    payment: {
+      provider: row.payment_provider ?? null,
+      paymentId: row.payment_provider_payment_id ?? null,
+      requestId: row.payment_provider_request_id ?? null,
+      status: row.payment_provider_status ?? null,
+      startedAt: row.payment_started_at ?? null,
+      completedAt: row.payment_completed_at ?? null,
+    },
+    invoice: {
+      provider: row.invoice_provider ?? null,
+      status: row.invoice_status ?? null,
+      number: row.invoice_number ?? null,
+      createdAt: row.invoice_created_at ?? null,
+    },
     shipping: {
       fullName: row.shipping_full_name,
       line1: row.shipping_line1,
@@ -497,6 +511,66 @@ function ensureSqliteOrderColumns(db) {
     ).run();
   }
 
+  if (!names.has("payment_provider")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN payment_provider TEXT",
+    ).run();
+  }
+
+  if (!names.has("payment_provider_payment_id")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN payment_provider_payment_id TEXT",
+    ).run();
+  }
+
+  if (!names.has("payment_provider_request_id")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN payment_provider_request_id TEXT",
+    ).run();
+  }
+
+  if (!names.has("payment_provider_status")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN payment_provider_status TEXT",
+    ).run();
+  }
+
+  if (!names.has("payment_started_at")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN payment_started_at TEXT",
+    ).run();
+  }
+
+  if (!names.has("payment_completed_at")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN payment_completed_at TEXT",
+    ).run();
+  }
+
+  if (!names.has("invoice_provider")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN invoice_provider TEXT",
+    ).run();
+  }
+
+  if (!names.has("invoice_status")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN invoice_status TEXT",
+    ).run();
+  }
+
+  if (!names.has("invoice_number")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN invoice_number TEXT",
+    ).run();
+  }
+
+  if (!names.has("invoice_created_at")) {
+    db.prepare(
+      "ALTER TABLE orders ADD COLUMN invoice_created_at TEXT",
+    ).run();
+  }
+
   db.prepare(
     `
       UPDATE orders
@@ -555,6 +629,56 @@ async function ensurePostgresOrderColumns(pool) {
   await pool.query(`
     ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS payment_provider TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS payment_provider_payment_id TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS payment_provider_request_id TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS payment_provider_status TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS payment_started_at TIMESTAMPTZ
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS payment_completed_at TIMESTAMPTZ
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS invoice_provider TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS invoice_status TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS invoice_number TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS invoice_created_at TIMESTAMPTZ
   `);
 
   await pool.query(`
@@ -835,6 +959,16 @@ function createSqliteAdapter() {
             processing_started_at,
             shipped_at,
             delivered_at,
+            payment_provider,
+            payment_provider_payment_id,
+            payment_provider_request_id,
+            payment_provider_status,
+            payment_started_at,
+            payment_completed_at,
+            invoice_provider,
+            invoice_status,
+            invoice_number,
+            invoice_created_at,
             subtotal,
             shipping_price,
             total,
@@ -1204,6 +1338,16 @@ function createSqliteAdapter() {
             processing_started_at TEXT,
             shipped_at TEXT,
             delivered_at TEXT,
+            payment_provider TEXT,
+            payment_provider_payment_id TEXT,
+            payment_provider_request_id TEXT,
+            payment_provider_status TEXT,
+            payment_started_at TEXT,
+            payment_completed_at TEXT,
+            invoice_provider TEXT,
+            invoice_status TEXT,
+            invoice_number TEXT,
+            invoice_created_at TEXT,
             subtotal INTEGER NOT NULL CHECK (subtotal >= 0),
             shipping_price INTEGER NOT NULL DEFAULT 0 CHECK (shipping_price >= 0),
             total INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
@@ -2716,6 +2860,90 @@ function createSqliteAdapter() {
 
       return execute(orderInput);
     },
+    async findOrderByPaymentReference(provider, paymentId) {
+      const orderRow = db
+        .prepare(
+          `
+            SELECT id
+            FROM orders
+            WHERE payment_provider = ? AND payment_provider_payment_id = ?
+            LIMIT 1
+          `,
+        )
+        .get(provider, paymentId);
+
+      return orderRow ? getOrderByIdSync(orderRow.id) : null;
+    },
+    async updateOrderPaymentSession(orderId, payload = {}) {
+      db.prepare(
+        `
+          UPDATE orders
+          SET
+            payment_provider = ?,
+            payment_provider_payment_id = ?,
+            payment_provider_request_id = ?,
+            payment_provider_status = ?,
+            payment_started_at = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `,
+      ).run(
+        payload.provider ?? null,
+        payload.paymentId ?? null,
+        payload.requestId ?? null,
+        payload.status ?? null,
+        payload.startedAt ?? nowIso(),
+        orderId,
+      );
+
+      return getOrderByIdSync(orderId);
+    },
+    async updateOrderPaymentStatus(orderId, payload = {}) {
+      db.prepare(
+        `
+          UPDATE orders
+          SET
+            payment_provider = ?,
+            payment_provider_payment_id = ?,
+            payment_provider_request_id = ?,
+            payment_provider_status = ?,
+            payment_completed_at = COALESCE(?, payment_completed_at),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `,
+      ).run(
+        payload.provider ?? null,
+        payload.paymentId ?? null,
+        payload.requestId ?? null,
+        payload.status ?? null,
+        payload.completedAt ?? null,
+        orderId,
+      );
+
+      return getOrderByIdSync(orderId);
+    },
+    async updateOrderInvoiceData(orderId, payload = {}) {
+      db.prepare(
+        `
+          UPDATE orders
+          SET
+            invoice_provider = ?,
+            invoice_status = ?,
+            invoice_number = ?,
+            invoice_created_at = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `,
+      ).run(
+        payload.provider ?? null,
+        payload.status ?? null,
+        payload.number ?? null,
+        payload.createdAt ?? null,
+        orderId,
+      );
+
+      return getOrderByIdSync(orderId);
+    },
     async listOrdersForUser(userType, userId) {
       return listOrdersSync(
         `
@@ -3086,6 +3314,16 @@ function createPostgresAdapter() {
           processing_started_at,
           shipped_at,
           delivered_at,
+          payment_provider,
+          payment_provider_payment_id,
+          payment_provider_request_id,
+          payment_provider_status,
+          payment_started_at,
+          payment_completed_at,
+          invoice_provider,
+          invoice_status,
+          invoice_number,
+          invoice_created_at,
           subtotal,
           shipping_price,
           total,
@@ -3507,6 +3745,16 @@ function createPostgresAdapter() {
           processing_started_at TIMESTAMPTZ,
           shipped_at TIMESTAMPTZ,
           delivered_at TIMESTAMPTZ,
+          payment_provider TEXT,
+          payment_provider_payment_id TEXT,
+          payment_provider_request_id TEXT,
+          payment_provider_status TEXT,
+          payment_started_at TIMESTAMPTZ,
+          payment_completed_at TIMESTAMPTZ,
+          invoice_provider TEXT,
+          invoice_status TEXT,
+          invoice_number TEXT,
+          invoice_created_at TIMESTAMPTZ,
           subtotal INTEGER NOT NULL CHECK (subtotal >= 0),
           shipping_price INTEGER NOT NULL DEFAULT 0 CHECK (shipping_price >= 0),
           total INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
@@ -5086,6 +5334,100 @@ function createPostgresAdapter() {
         return getOrderById(client, orderId);
       });
     },
+    async findOrderByPaymentReference(provider, paymentId) {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `
+            SELECT id
+            FROM orders
+            WHERE payment_provider = $1 AND payment_provider_payment_id = $2
+            LIMIT 1
+          `,
+          [provider, paymentId],
+        );
+
+        return result.rows[0] ? getOrderById(client, result.rows[0].id) : null;
+      });
+    },
+    async updateOrderPaymentSession(orderId, payload = {}) {
+      return withTransaction(async (client) => {
+        await client.query(
+          `
+            UPDATE orders
+            SET
+              payment_provider = $1,
+              payment_provider_payment_id = $2,
+              payment_provider_request_id = $3,
+              payment_provider_status = $4,
+              payment_started_at = $5,
+              updated_at = NOW()
+            WHERE id = $6
+          `,
+          [
+            payload.provider ?? null,
+            payload.paymentId ?? null,
+            payload.requestId ?? null,
+            payload.status ?? null,
+            payload.startedAt ?? nowIso(),
+            orderId,
+          ],
+        );
+
+        return getOrderById(client, orderId);
+      });
+    },
+    async updateOrderPaymentStatus(orderId, payload = {}) {
+      return withTransaction(async (client) => {
+        await client.query(
+          `
+            UPDATE orders
+            SET
+              payment_provider = $1,
+              payment_provider_payment_id = $2,
+              payment_provider_request_id = $3,
+              payment_provider_status = $4,
+              payment_completed_at = COALESCE($5, payment_completed_at),
+              updated_at = NOW()
+            WHERE id = $6
+          `,
+          [
+            payload.provider ?? null,
+            payload.paymentId ?? null,
+            payload.requestId ?? null,
+            payload.status ?? null,
+            payload.completedAt ?? null,
+            orderId,
+          ],
+        );
+
+        return getOrderById(client, orderId);
+      });
+    },
+    async updateOrderInvoiceData(orderId, payload = {}) {
+      return withTransaction(async (client) => {
+        await client.query(
+          `
+            UPDATE orders
+            SET
+              invoice_provider = $1,
+              invoice_status = $2,
+              invoice_number = $3,
+              invoice_created_at = $4,
+              updated_at = NOW()
+            WHERE id = $5
+          `,
+          [
+            payload.provider ?? null,
+            payload.status ?? null,
+            payload.number ?? null,
+            payload.createdAt ?? null,
+            orderId,
+          ],
+        );
+
+        return getOrderById(client, orderId);
+      });
+    },
     async listOrdersForUser(userType, userId) {
       return withClient((client) =>
         listOrders(
@@ -5306,6 +5648,14 @@ module.exports = {
   saveCart: (...args) => getAdapter().saveCart(...args),
   clearCart: (...args) => getAdapter().clearCart(...args),
   createOrderFromCart: (...args) => getAdapter().createOrderFromCart(...args),
+  findOrderByPaymentReference: (...args) =>
+    getAdapter().findOrderByPaymentReference(...args),
+  updateOrderPaymentSession: (...args) =>
+    getAdapter().updateOrderPaymentSession(...args),
+  updateOrderPaymentStatus: (...args) =>
+    getAdapter().updateOrderPaymentStatus(...args),
+  updateOrderInvoiceData: (...args) =>
+    getAdapter().updateOrderInvoiceData(...args),
   listOrdersForUser: (...args) => getAdapter().listOrdersForUser(...args),
   listAllOrders: (...args) => getAdapter().listAllOrders(...args),
   getOrderById: (...args) => getAdapter().getOrderById(...args),

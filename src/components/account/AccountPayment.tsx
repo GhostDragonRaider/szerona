@@ -364,8 +364,9 @@ export function AccountPayment() {
     <Box>
       <Title>Fizetési módok</Title>
       <Lead>
-        Itt már tokenizált, szolgáltatói azonosítóval mentett bankkártyák
-        kezelhetők. Valódi kártyaszámot vagy CVC/CVV kódot a Serona nem tárol.
+        {gateway.mode === "redirect"
+          ? "A webshop jelenleg átirányított online fizetést használ. A bankkártyaadatokat a külső fizetési szolgáltató kéri be, a Serona nem tárol nyers kártyaadatot."
+          : "Itt már tokenizált, szolgáltatói azonosítóval mentett bankkártyák kezelhetők. Valódi kártyaszámot vagy CVC/CVV kódot a Serona nem tárol."}
       </Lead>
 
       <InlineNotice>
@@ -373,18 +374,29 @@ export function AccountPayment() {
         {PROVIDER_LABELS[gateway.provider]}
         <br />
         <strong>Állapot:</strong>{" "}
-        {gateway.readyForClientSetup
-          ? "a kliensoldali tokenizálás bekötéséhez már van alapkonfiguráció"
-          : "a teljes kliensoldali tokenizáló widget még nincs bekötve"}
+        {gateway.mode === "redirect"
+          ? gateway.readyForClientSetup
+            ? "az átirányított online fizetés használható"
+            : "az átirányított online fizetés még nincs készre konfigurálva"
+          : gateway.readyForClientSetup
+            ? "a kliensoldali tokenizálás bekötéséhez már van alapkonfiguráció"
+            : "a teljes kliensoldali tokenizáló widget még nincs bekötve"}
         <br />
-        <strong>Jelenlegi működés:</strong> a szolgáltatótól kapott token vagy
-        fizetési mód azonosító már menthető, így a rendszer készen áll a valódi
-        mentett kártyás terhelés szerkezetére.
+        <strong>Jelenlegi működés:</strong>{" "}
+        {gateway.mode === "redirect"
+          ? "a checkout a rendelés után átirányít a szolgáltató saját fizetési oldalára, ezért itt nem kell mentett kártyát rögzíteni."
+          : "a szolgáltatótól kapott token vagy fizetési mód azonosító már menthető, így a rendszer készen áll a valódi mentett kártyás terhelés szerkezetére."}
       </InlineNotice>
 
       {isLoading ? <Lead>Mentett fizetési módok betöltése...</Lead> : null}
 
-      {paymentMethods.length > 0 ? (
+      {gateway.mode === "redirect" ? (
+        <Lead>
+          Ennél a fizetési módnál nincs szükség külön mentett bankkártyákra:
+          a <Link to="/checkout">pénztárban</Link> a rendszer átirányít a{" "}
+          {PROVIDER_LABELS[gateway.provider]} fizetési oldalára.
+        </Lead>
+      ) : paymentMethods.length > 0 ? (
         <div>
           {paymentMethods.map((method) => (
             <CardRow key={method.id}>
@@ -440,14 +452,16 @@ export function AccountPayment() {
         </Lead>
       )}
 
-      <SubTitle>Új tokenizált fizetési mód rögzítése</SubTitle>
-      <Lead>
-        Ide a fizetési szolgáltatótól kapott azonosítót kell rögzíteni.
-        Nyers PAN, teljes kártyaszám és CVC/CVV mező nincs és nem is lesz
-        eltárolva. Ha később a kliensoldali widget bekötésre kerül, ezt a
-        folyamatot már közvetlenül az oldal fogja kitölteni.
-      </Lead>
-      <form onSubmit={handleAdd}>
+      {gateway.mode === "tokenized" ? (
+        <>
+          <SubTitle>Új tokenizált fizetési mód rögzítése</SubTitle>
+          <Lead>
+            Ide a fizetési szolgáltatótól kapott azonosítót kell rögzíteni.
+            Nyers PAN, teljes kártyaszám és CVC/CVV mező nincs és nem is lesz
+            eltárolva. Ha később a kliensoldali widget bekötésre kerül, ezt a
+            folyamatot már közvetlenül az oldal fogja kitölteni.
+          </Lead>
+          <form onSubmit={handleAdd}>
         <Field>
           Fizetési szolgáltató
           <Select
@@ -609,17 +623,21 @@ export function AccountPayment() {
           />
           Legyen ez az alapértelmezett fizetési mód
         </CheckboxLabel>
-        <Btn type="submit" disabled={isSaving}>
-          {isSaving ? "Mentés..." : "Tokenizált fizetési mód mentése"}
-        </Btn>
-        {msg ? <Msg ok={msg.ok}>{msg.text}</Msg> : null}
-      </form>
+            <Btn type="submit" disabled={isSaving}>
+              {isSaving ? "Mentés..." : "Tokenizált fizetési mód mentése"}
+            </Btn>
+            {msg ? <Msg ok={msg.ok}>{msg.text}</Msg> : null}
+          </form>
 
-      <Lead style={{ marginTop: "1.5rem" }}>
-        Ha a bankkártyás fizetést a checkoutban is használni szeretnéd, a{" "}
-        <Link to="/checkout">pénztárban</Link> mentett fizetési módot fogsz
-        tudni kiválasztani, nem nyers kártyaadatot megadni.
-      </Lead>
+          <Lead style={{ marginTop: "1.5rem" }}>
+            Ha a bankkártyás fizetést a checkoutban is használni szeretnéd, a{" "}
+            <Link to="/checkout">pénztárban</Link> mentett fizetési módot fogsz
+            tudni kiválasztani, nem nyers kártyaadatot megadni.
+          </Lead>
+        </>
+      ) : msg ? (
+        <Msg ok={msg.ok}>{msg.text}</Msg>
+      ) : null}
     </Box>
   );
 }

@@ -11,6 +11,7 @@ const {
   updateUserProfile,
 } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
+const { getPaymentGatewayConfig } = require("../services/paymentConfig");
 const { asyncHandler } = require("../utils/http");
 const {
   normalizeAddress,
@@ -32,16 +33,6 @@ function ensureRegularUser(req, res) {
   }
 
   return true;
-}
-
-function getPaymentGatewayConfig() {
-  return {
-    provider: config.paymentProvider,
-    mode: "tokenized",
-    readyForClientSetup:
-      config.paymentProvider !== "none" && Boolean(config.paymentPublicKey),
-    supportsSavedCards: true,
-  };
 }
 
 function normalizePaymentMethodInput(body) {

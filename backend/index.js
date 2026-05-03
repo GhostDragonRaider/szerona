@@ -1,20 +1,56 @@
 const cors = require("cors");
 const express = require("express");
 const helmet = require("helmet");
+const path = require("path");
 const rateLimit = require("express-rate-limit");
 const { config } = require("./config");
-const { clearAllThrottles, getDatabaseDriver, initDatabase } = require("./db");
+const { clearAllThrottles, initDatabase } = require("./db");
 const adminRouter = require("./routes/admin");
 const accountRouter = require("./routes/account");
 const authRouter = require("./routes/auth");
 const cartRouter = require("./routes/cart");
 const commerceRouter = require("./routes/commerce");
+const contactRouter = require("./routes/contact");
 const ordersRouter = require("./routes/orders");
+const paymentsRouter = require("./routes/payments");
 const productsRouter = require("./routes/products");
+const { startBackupScheduler } = require("./services/backup");
 
 const app = express();
 const serverStartedAt = new Date();
 let readyPromise = null;
+
+function getRequestOrigins(req) {
+  const host =
+    req.headers["x-forwarded-host"] || req.headers.host || req.get("host");
+  const forwardedProto = String(
+    req.headers["x-forwarded-proto"] || req.protocol || "http",
+  )
+    .split(",")[0]
+    .trim();
+
+  if (!host) {
+    return [];
+  }
+
+  return [...new Set([
+    `${forwardedProto}://${host}`,
+    `http://${host}`,
+    `https://${host}`,
+  ])];
+}
+
+function isAllowedOrigin(origin, req) {
+  if (!origin) {
+    return true;
+  }
+
+  if (config.corsOrigins.includes(origin)) {
+    return true;
+  }
+
+  return getRequestOrigins(req).includes(origin);
+}
 
 function ensureReady() {
   if (!readyPromise) {
@@ -22,6 +58,7 @@ function ensureReady() {
       if (config.relaxedAuthGuards) {
         await clearAllThrottles();
       }
+      startBackupScheduler();
 
       return database;
     });
@@ -49,7 +86,8 @@ function sendHealth(res) {
     startedAt: serverStartedAt.toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     emailVerificationEnabled: config.emailVerificationEnabled,
-    database: getDatabaseDriver(),
+    backendVersion: "1.0",
+    frontendVersion: "1.0",
     deployment: {
       isVercel: config.isVercel,
       relaxedAuthGuards: config.relaxedAuthGuards,
@@ -75,14 +113,14 @@ app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || config.corsOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error("Not allowed by CORS"));
-    },
+  cors((req, callback) => {
+    const origin = req.header("Origin");
+    if (isAllowedOrigin(origin, req)) {
+      callback(null, { origin: true });
+      return;
+    }
+
+    callback(new Error("Not allowed by CORS"));
   }),
 );
 app.use(
@@ -93,7 +131,11 @@ app.use(
     legacyHeaders: false,
   }),
 );
-app.use(express.json({ limit: "10kb" }));
+app.use(express.json({ limit: "8mb" }));
+app.use(
+  "/uploads",
+  express.static(path.join(path.dirname(config.sqlitePath), "uploads")),
+);
 app.use(async (req, res, next) => {
   try {
     await ensureReady();
@@ -110,9 +152,11 @@ registerRoute("/api/auth", authRouter);
 registerRoute("/api/admin", adminRouter);
 registerRoute("/api/account", accountRouter);
 registerRoute("/api/commerce", commerceRouter);
+registerRoute("/api/contact", contactRouter);
 registerRoute("/api/products", productsRouter);
 registerRoute("/api/cart", cartRouter);
 registerRoute("/api/orders", ordersRouter);
+registerRoute("/api/payments", paymentsRouter);
 
 app.use((req, res) => {
   res.status(404).json({

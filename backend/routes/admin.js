@@ -12,6 +12,21 @@ const {
 } = require("../db");
 const { SHIPPING_METHOD_IDS, normalizeCouponCode } = require("../constants/commerce");
 const { requireAuth } = require("../middleware/requireAuth");
+const {
+  getBackupMeta,
+  restoreLatestDatabaseBackup,
+} = require("../services/backup");
+const {
+  getContactSettings,
+  listContactMessages,
+  updateContactSettings,
+  validateContactSettings,
+} = require("../services/contactStore");
+const {
+  getPaymentIntegrationSettings,
+  updatePaymentIntegrationSettings,
+} = require("../services/paymentConfig");
+const { getInvoicePdf, invoicePdfExists } = require("../services/invoiceFiles");
 const { createGlsShipmentForOrder, isGlsConfigured } = require("../services/shipments");
 const { asyncHandler } = require("../utils/http");
 
@@ -402,6 +417,167 @@ router.post(
         ...(error?.details ? { details: error.details } : {}),
       });
     }
+  }),
+);
+
+router.get(
+  "/payment-integrations",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    res.json({
+      ok: true,
+      settings: getPaymentIntegrationSettings(),
+    });
+  }),
+);
+
+router.get(
+  "/contact-settings",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    res.json({
+      ok: true,
+      settings: getContactSettings(),
+    });
+  }),
+);
+
+router.patch(
+  "/contact-settings",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    const validationError = validateContactSettings(req.body ?? {});
+    if (validationError) {
+      res.status(400).json({ ok: false, message: validationError });
+      return;
+    }
+
+    const settings = updateContactSettings(req.body);
+    res.json({
+      ok: true,
+      message: "A kapcsolat menüpont adatai mentve.",
+      settings,
+    });
+  }),
+);
+
+router.get(
+  "/contact-messages",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    res.json({
+      ok: true,
+      messages: listContactMessages(),
+    });
+  }),
+);
+
+router.get(
+  "/backup",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    res.json({
+      ok: true,
+      backup: getBackupMeta(),
+    });
+  }),
+);
+
+router.post(
+  "/backup/restore",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    try {
+      const backup = restoreLatestDatabaseBackup();
+      res.json({
+        ok: true,
+        message: "A legutóbbi biztonsági mentés visszaállítva. A szervert érdemes újraindítani.",
+        backup,
+      });
+    } catch (error) {
+      res.status(error?.code === "NO_BACKUP" ? 404 : 500).json({
+        ok: false,
+        message: error.message || "Nem sikerült visszaállítani a mentést.",
+      });
+    }
+  }),
+);
+
+router.patch(
+  "/payment-integrations",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    const settings = updatePaymentIntegrationSettings(req.body ?? {});
+    res.json({
+      ok: true,
+      message: "A fizetési integrációk beállításai mentve.",
+      settings,
+    });
+  }),
+);
+
+router.get(
+  "/invoices",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    const orders = await listAllOrders();
+    const invoices = orders
+      .filter((order) => order.invoice?.number)
+      .map((order) => ({
+        orderId: order.id,
+        invoiceNumber: order.invoice.number,
+        status: order.invoice.status,
+        createdAt: order.invoice.createdAt,
+        contactEmail: order.contactEmail,
+        total: order.total,
+        paymentMethod: order.paymentMethod,
+        pdfAvailable: invoicePdfExists(order.invoice.number),
+      }));
+
+    res.json({
+      ok: true,
+      invoices,
+    });
+  }),
+);
+
+router.get(
+  "/invoices/:invoiceNumber/pdf",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+
+    const invoice = getInvoicePdf(req.params.invoiceNumber);
+    if (!invoice) {
+      res.status(404).json({
+        ok: false,
+        message: "A számla PDF még nincs eltárolva a szerveren.",
+      });
+      return;
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${invoice.filename}"`,
+    );
+    res.sendFile(invoice.path);
   }),
 );
 

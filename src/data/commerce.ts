@@ -3,7 +3,6 @@ import type { PaymentMethod, ShippingMethodId } from "./types";
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cod: "Utánvét",
   card: "Bankkártya",
-  transfer: "Előre utalás",
 };
 
 export const SHIPPING_METHOD_LABELS: Record<ShippingMethodId, string> = {

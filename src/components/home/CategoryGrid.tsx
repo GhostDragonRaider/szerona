@@ -44,7 +44,9 @@ const Grid = styled.div`
   }
 `;
 
-const Card = styled(Link)<{ $imageUrl: string }>`
+const Card = styled(Link, {
+  shouldForwardProp: (prop) => prop !== "$imageUrl",
+})<{ $imageUrl: string }>`
   display: flex;
   flex-direction: column;
   justify-content: flex-end;

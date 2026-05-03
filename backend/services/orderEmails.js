@@ -1,3 +1,4 @@
+const fs = require("fs");
 const { config } = require("../config");
 const { getPaymentMethodById, getShippingMethodById } = require("../constants/commerce");
 const {
@@ -6,6 +7,7 @@ const {
   formatHuDate,
   renderEmailLayout,
 } = require("./emailLayout");
+const { getInvoicePdf } = require("./invoiceFiles");
 const { generateTransferInvoicePdf } = require("./invoicePdf");
 const { sendEmail } = require("./mailer");
 
@@ -131,6 +133,24 @@ function buildItemsHtml(order, shippingMethod) {
       <td style="padding:14px 0 0;color:#ffffff;text-align:right;font-size:18px;font-weight:800;">${escapeHtml(formatCurrency(order.total))} Ft</td>
     </tr>
   </table>`;
+}
+
+function buildInvoiceAttachments(order) {
+  if (!order.invoice?.number) {
+    return [];
+  }
+
+  const invoicePdf = getInvoicePdf(order.invoice.number);
+  if (!invoicePdf) {
+    return [];
+  }
+
+  return [
+    {
+      filename: invoicePdf.filename,
+      content: fs.readFileSync(invoicePdf.path).toString("base64"),
+    },
+  ];
 }
 
 async function sendTransferInstructionsEmail({ to, username, order }) {
@@ -296,7 +316,79 @@ async function sendOrderStatusEmail({ to, username, order, event }) {
   });
 }
 
+async function sendPaidOrderConfirmationEmail({ to, username, order }) {
+  const shippingMethod = getShippingMethodById(order.shippingMethod);
+  const paymentMethod = getPaymentMethodById(order.paymentMethod);
+  const invoiceNumber = order.invoice?.number ?? null;
+  const attachments = buildInvoiceAttachments(order);
+
+  const html = renderEmailLayout({
+    preheader: `Sikeres fizetés a ${order.id} rendeléshez.`,
+    eyebrow: "Serona rendelés visszaigazolás",
+    title: "Sikeres fizetés, rendelés rögzítve",
+    intro:
+      "Megérkezett a fizetésed, a rendelést jóváhagytuk, és elkezdjük az összekészítést.",
+    ctaLabel: "Rendelés megtekintése",
+    ctaUrl: `${config.frontendBaseUrl.replace(/\/+$/, "")}/account?tab=orders`,
+    bodyHtml: `
+      <p style="margin:0 0 16px;">
+        Szia <strong style="color:#ffffff;">${escapeHtml(username)}</strong>!
+      </p>
+      <p style="margin:0 0 16px;">
+        A <strong style="color:#ffffff;">${escapeHtml(order.id)}</strong> rendelésed fizetése sikeres volt.
+        Fizetési mód: <strong style="color:#ffffff;">${escapeHtml(paymentMethod?.label ?? order.paymentMethod)}</strong>.
+      </p>
+      ${buildItemsHtml(order, shippingMethod)}
+      ${
+        invoiceNumber
+          ? `<p style="margin:16px 0 0;">
+        A számlaszám: <strong style="color:#ffffff;">${escapeHtml(invoiceNumber)}</strong>.
+        ${attachments.length > 0 ? "A számlát PDF mellékletként is csatoltuk." : "A számla az admin felületen már elérhető."}
+      </p>`
+          : ""
+      }
+    `,
+    note:
+      "A következő állomásról külön értesítést kapsz. Ha bármi kérdésed van, válaszolj erre az e-mailre.",
+  });
+
+  const textLines = [
+    `Szia ${username}!`,
+    "",
+    `A(z) ${order.id} azonosítójú rendelésed fizetése sikeres volt.`,
+    `Fizetési mód: ${paymentMethod?.label ?? order.paymentMethod}`,
+    "",
+    "Tételes összesítő:",
+    ...order.items.map(
+      (item) => `- ${item.name} x ${item.quantity}: ${formatCurrency(item.lineTotal)} Ft`,
+    ),
+    `- Szállítás (${shippingMethod?.label ?? order.shippingMethod}): ${formatCurrency(order.shippingPrice)} Ft`,
+    ...(order.discountAmount
+      ? [
+          `- Kedvezmény${order.discountCode ? ` (${order.discountCode})` : ""}: -${formatCurrency(order.discountAmount)} Ft`,
+        ]
+      : []),
+    `- Végösszeg: ${formatCurrency(order.total)} Ft`,
+    ...(invoiceNumber ? ["", `Számlaszám: ${invoiceNumber}`] : []),
+    "",
+    `${config.frontendBaseUrl.replace(/\/+$/, "")}/account?tab=orders`,
+  ];
+
+  return sendEmail({
+    to,
+    subject: `Serona rendelés visszaigazolás - ${order.id}`,
+    html,
+    text: textLines.join("\n"),
+    attachments,
+    tags: [
+      { name: "type", value: "paid_order_confirmation" },
+      { name: "app", value: "serona" },
+    ],
+  });
+}
+
 module.exports = {
+  sendPaidOrderConfirmationEmail,
   sendOrderStatusEmail,
   sendTransferInstructionsEmail,
 };

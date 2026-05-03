@@ -10,7 +10,7 @@ import { useAuth } from "../../context/AuthContext";
 const Backdrop = styled.div<{ open: boolean }>`
   position: fixed;
   inset: 0;
-  z-index: 300;
+  z-index: 1400;
   background: ${({ theme }) => theme.colors.overlay};
   display: ${({ open }) => (open ? "flex" : "none")};
   align-items: flex-start;
@@ -64,21 +64,6 @@ const MailBadge = styled.div`
   color: ${({ theme }) => theme.colors.text};
   font-weight: 600;
   word-break: break-word;
-`;
-
-const LinkPanel = styled.div`
-  margin: 0 0 ${({ theme }) => theme.space.lg};
-  padding: ${({ theme }) => theme.space.md};
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) => theme.colors.accentSoft};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-`;
-
-const LinkAnchor = styled.a`
-  color: ${({ theme }) => theme.colors.accent};
-  font-weight: 700;
-  word-break: break-all;
-  text-decoration: none;
 `;
 
 const MetaText = styled.p`
@@ -187,7 +172,6 @@ export function RegisterModal({ open, onClose }: RegisterModalProps) {
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(
     null,
   );
-  const [confirmationLink, setConfirmationLink] = useState<string | null>(null);
   const [confirmationExpiresAt, setConfirmationExpiresAt] = useState<
     string | null
   >(null);
@@ -219,7 +203,6 @@ export function RegisterModal({ open, onClose }: RegisterModalProps) {
     setError(null);
     setIsSubmitting(false);
     setConfirmationEmail(null);
-    setConfirmationLink(null);
     setConfirmationExpiresAt(null);
   }
 
@@ -258,7 +241,6 @@ export function RegisterModal({ open, onClose }: RegisterModalProps) {
     }
 
     setConfirmationEmail(email.trim());
-    setConfirmationLink(res.devVerificationUrl ?? null);
     setConfirmationExpiresAt(res.expiresAt ?? null);
     setUsername("");
     setEmail("");
@@ -281,14 +263,13 @@ export function RegisterModal({ open, onClose }: RegisterModalProps) {
     }
 
     setError(null);
-    setConfirmationLink(result.devVerificationUrl ?? null);
     setConfirmationExpiresAt(result.expiresAt ?? null);
   }
 
   if (!open) return null;
 
   return (
-    <Backdrop open={open} onClick={handleClose}>
+    <Backdrop open={open}>
       <Dialog
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -299,39 +280,26 @@ export function RegisterModal({ open, onClose }: RegisterModalProps) {
           <>
             <Title id="reg-title">E-mail megerősítés</Title>
             <Copy>
-              {confirmationLink
-                ? "Ebben a környezetben a megerősítő linket közvetlenül itt kapod meg. A fiókod véglegesítéséhez nyisd meg az alábbi hivatkozást."
-                : "Küldtünk egy megerősítő linket az alábbi e-mail címre. A fiókod megerősítése ezen a linken keresztül fog történni."}
+              Küldtünk egy megerősítő linket az alábbi e-mail címre. A fiókod
+              megerősítése kizárólag az e-mailben kapott linken keresztül
+              történik.
             </Copy>
             <MailBadge>{confirmationEmail}</MailBadge>
-            {confirmationLink ? (
-              <LinkPanel>
-                <LinkAnchor
-                  href={confirmationLink}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {confirmationLink}
-                </LinkAnchor>
-                {formatExpiry(confirmationExpiresAt) ? (
-                  <MetaText>
-                    A link eddig érvényes:{" "}
-                    <strong>{formatExpiry(confirmationExpiresAt)}</strong>
-                  </MetaText>
-                ) : null}
-              </LinkPanel>
+            {formatExpiry(confirmationExpiresAt) ? (
+              <MetaText>
+                A link eddig érvényes:{" "}
+                <strong>{formatExpiry(confirmationExpiresAt)}</strong>
+              </MetaText>
             ) : null}
             {error ? <Err>{error}</Err> : null}
             <Row>
-              {!confirmationLink ? (
-                <BtnGhost
-                  type="button"
-                  onClick={handleResend}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Küldés..." : "Levél újraküldése"}
-                </BtnGhost>
-              ) : null}
+              <BtnGhost
+                type="button"
+                onClick={handleResend}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Küldés..." : "Levél újraküldése"}
+              </BtnGhost>
               <BtnPrimary type="button" onClick={handleClose}>
                 Rendben
               </BtnPrimary>

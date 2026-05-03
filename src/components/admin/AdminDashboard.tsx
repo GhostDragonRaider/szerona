@@ -6,8 +6,13 @@
 import styled from "@emotion/styled";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { AdminBackup } from "./AdminBackup";
+import { AdminContactMessages } from "./AdminContactMessages";
+import { AdminContactSettings } from "./AdminContactSettings";
+import { AdminInvoices } from "./AdminInvoices";
 import { AdminOverview } from "./AdminOverview";
 import { AdminOrders } from "./AdminOrders";
+import { AdminPaymentIntegrations } from "./AdminPaymentIntegrations";
 import { AdminSeo } from "../seo/AdminSeo";
 import { AdminProducts } from "./AdminProducts";
 import { AdminSettings } from "./AdminSettings";
@@ -160,7 +165,16 @@ const Content = styled.div`
   }
 `;
 
-export type AdminTab = "overview" | "products" | "orders" | "settings";
+export type AdminTab =
+  | "overview"
+  | "products"
+  | "orders"
+  | "invoices"
+  | "payments"
+  | "contactSettings"
+  | "contactMessages"
+  | "backup"
+  | "settings";
 
 export function AdminDashboard() {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -201,6 +215,41 @@ export function AdminDashboard() {
           </TabBtn>
           <TabBtn
             type="button"
+            active={tab === "payments"}
+            onClick={() => setTab("payments")}
+          >
+            Fizetési integrációk
+          </TabBtn>
+          <TabBtn
+            type="button"
+            active={tab === "contactSettings"}
+            onClick={() => setTab("contactSettings")}
+          >
+            Kapcsolat menüpont adatok
+          </TabBtn>
+          <TabBtn
+            type="button"
+            active={tab === "contactMessages"}
+            onClick={() => setTab("contactMessages")}
+          >
+            Beérkezett űrlapok
+          </TabBtn>
+          <TabBtn
+            type="button"
+            active={tab === "invoices"}
+            onClick={() => setTab("invoices")}
+          >
+            Számlák
+          </TabBtn>
+          <TabBtn
+            type="button"
+            active={tab === "backup"}
+            onClick={() => setTab("backup")}
+          >
+            Biztonsági mentések
+          </TabBtn>
+          <TabBtn
+            type="button"
             active={tab === "settings"}
             onClick={() => setTab("settings")}
           >
@@ -211,6 +260,11 @@ export function AdminDashboard() {
           {tab === "overview" ? <AdminOverview /> : null}
           {tab === "products" ? <AdminProducts /> : null}
           {tab === "orders" ? <AdminOrders /> : null}
+          {tab === "invoices" ? <AdminInvoices /> : null}
+          {tab === "payments" ? <AdminPaymentIntegrations /> : null}
+          {tab === "contactSettings" ? <AdminContactSettings /> : null}
+          {tab === "contactMessages" ? <AdminContactMessages /> : null}
+          {tab === "backup" ? <AdminBackup /> : null}
           {tab === "settings" ? <AdminSettings /> : null}
         </Content>
       </Body>

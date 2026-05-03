@@ -9,6 +9,7 @@ import { CookieBanner } from "./components/privacy/CookieBanner";
 import { CookiePreferencesModal } from "./components/privacy/CookiePreferencesModal";
 import { AccountPage } from "./pages/AccountPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
+import { ContactPage } from "./pages/ContactPage";
 import { CookiePage } from "./pages/CookiePage";
 import { HomePage } from "./pages/HomePage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -27,6 +28,7 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="shop" element={<ShopPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="kapcsolat" element={<ContactPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="verify-email" element={<VerifyEmailPage />} />
           <Route path="aszf" element={<TermsPage />} />

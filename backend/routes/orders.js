@@ -1,5 +1,6 @@
 const express = require("express");
 const { config } = require("../config");
+const { isPaymentMethodAllowedForShipping } = require("../constants/commerce");
 const {
   createOrderFromCart,
   findPaymentMethodByIdForUser,
@@ -11,8 +12,11 @@ const {
 const { requireAuth } = require("../middleware/requireAuth");
 const {
   sendOrderStatusEmail,
-  sendTransferInstructionsEmail,
 } = require("../services/orderEmails");
+const {
+  ensureInvoiceForOrder,
+  startHostedPaymentForOrder,
+} = require("../services/orderIntegrations");
 const { asyncHandler } = require("../utils/http");
 const {
   normalizeAddress,
@@ -72,18 +76,6 @@ function requireAutomationOrAdmin(req, res, next) {
 
     next();
   });
-}
-
-function addTransferDueDate(order) {
-  const createdAtMs = Date.parse(order.createdAt);
-  const dueAt = new Date(
-    createdAtMs + config.transferPaymentDueDays * 24 * 60 * 60 * 1000,
-  ).toISOString();
-
-  return {
-    ...order,
-    transferDueAt: dueAt,
-  };
 }
 
 router.get(
@@ -151,7 +143,18 @@ router.post(
       return;
     }
 
-    if (paymentMethod === "card") {
+    if (!isPaymentMethodAllowedForShipping(paymentMethod, shippingMethod)) {
+      res.status(400).json({
+        ok: false,
+        message: "A választott fizetési mód ehhez a szállítási módhoz nem használható.",
+      });
+      return;
+    }
+
+    const requiresSavedPaymentMethod =
+      paymentMethod === "card" && config.paymentMode !== "redirect";
+
+    if (requiresSavedPaymentMethod) {
       if (!savedPaymentMethodId) {
         res.status(400).json({
           ok: false,
@@ -175,6 +178,19 @@ router.post(
       }
     }
 
+    if (
+      paymentMethod === "card" &&
+      config.paymentProvider === "barion" &&
+      !config.barionEnabled
+    ) {
+      res.status(503).json({
+        ok: false,
+        message:
+          "A Barion online fizetés még nincs készre konfigurálva a szerveren.",
+      });
+      return;
+    }
+
     try {
       const order = await createOrderFromCart(owner.userType, owner.userId, {
         shipping,
@@ -186,38 +202,41 @@ router.post(
         couponCode,
       });
 
-      let emailNotice = null;
-      if (paymentMethod === "transfer") {
+      let paymentSession = null;
+
+      if (paymentMethod === "card" && config.paymentProvider === "barion") {
         try {
-          await sendTransferInstructionsEmail({
-            to: contactEmail,
-            username: req.auth?.username ?? contactEmail,
-            order: addTransferDueDate(order),
+          const paymentResult = await startHostedPaymentForOrder(order);
+          paymentSession = paymentResult?.paymentSession ?? null;
+        } catch (paymentError) {
+          console.error("A Barion fizetési session indítása sikertelen volt.", paymentError);
+          const cancelledOrder = await recordOrderFulfillmentEvent(order.id, {
+            event: "cancelled",
+            occurredAt: new Date().toISOString(),
           });
-          emailNotice = {
-            ok: true,
-            message:
-              "A díjbekérő e-mailt elküldtük a megadott e-mail-címre.",
-          };
-        } catch (error) {
-          console.error("A díjbekérő e-mail küldése sikertelen volt.", error);
-          emailNotice = {
+          const barionMessage =
+            paymentError?.code === "BARION_API_ERROR"
+              ? `Barion hiba: ${paymentError.message}`
+              : paymentError?.code === "BARION_NOT_CONFIGURED"
+                ? paymentError.message
+                : "A Barion fizetést most nem sikerült elindítani.";
+          res.status(502).json({
             ok: false,
-            message:
-              "A rendelést létrehoztuk, de a díjbekérő e-mail küldése nem sikerült.",
-          };
+            message: `${barionMessage} A rendelést automatikusan töröltük.`,
+            order: cancelledOrder ?? order,
+          });
+          return;
         }
       }
 
       res.status(201).json({
         ok: true,
         message:
-          emailNotice?.message ??
-          (paymentMethod === "transfer"
-            ? "Rendelés létrehozva. A díjbekérő e-mailt elküldtük."
-            : "Rendelés létrehozva."),
+          paymentSession
+            ? "A rendelést rögzítettük, átirányítunk a Barion fizetési felületére."
+            : "Rendelés létrehozva.",
         order,
-        ...(emailNotice ? { emailNotice } : {}),
+        ...(paymentSession ? { paymentSession } : {}),
       });
     } catch (error) {
       if (error?.code === "EMPTY_CART") {
@@ -331,6 +350,10 @@ router.post(
           before?.status !== order.status ||
           before?.trackingNumber !== order.trackingNumber;
 
+        if (event === "confirmed") {
+          await ensureInvoiceForOrder(order);
+        }
+
         if (statusChanged) {
           await sendOrderStatusEmail({
             to: order.contactEmail,
@@ -339,8 +362,11 @@ router.post(
             event,
           });
         }
-      } catch (emailError) {
-        console.error("A rendelési státusz e-mail küldése sikertelen volt.", emailError);
+      } catch (integrationError) {
+        console.error(
+          "A rendelés utófeldolgozása sikertelen volt.",
+          integrationError,
+        );
       }
     } catch (error) {
       if (error?.code === "INVALID_EVENT_TIMESTAMP") {

@@ -1,5 +1,4 @@
 const express = require("express");
-const { config } = require("../config");
 const {
   PAYMENT_METHODS,
   SHIPPING_METHODS,
@@ -8,6 +7,7 @@ const {
 } = require("../constants/commerce");
 const { getCart, listCoupons } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
+const { getPaymentGatewayConfig } = require("../services/paymentConfig");
 const { asyncHandler } = require("../utils/http");
 
 const router = express.Router();
@@ -18,14 +18,9 @@ router.get("/options", asyncHandler(async (req, res) => {
     ok: true,
     commerce: {
       paymentMethods: PAYMENT_METHODS,
+      paymentGateway: getPaymentGatewayConfig(),
       shippingMethods: SHIPPING_METHODS,
       coupons: listCouponSummaries(coupons),
-      transfer: {
-        bankAccountHolder: config.transferBankAccountHolder,
-        bankAccountNumber: config.transferBankAccountNumber,
-        bankName: config.transferBankName,
-        paymentDueDays: config.transferPaymentDueDays,
-      },
     },
   });
 }));
